@@ -1,0 +1,2508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPE SkyTrace Alpha 1.0</title>
+{% load static %}
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Roboto', sans-serif; background: #f0f2f5; color: #333; font-size: 15px; }
+
+  /* ── LOGIN ── */
+  #loginPage {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #f0f2f5;
+  }
+  .login-box {
+    background: #fff; border-radius: 8px; overflow: hidden;
+    width: 460px; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  }
+  .login-header {
+    background: linear-gradient(135deg, #a8d8ea 0%, #6ec6c6 50%, #01c875 100%);
+    padding: 28px 32px; display: flex; align-items: center; gap: 12px;
+  }
+  .hpe-logo { font-size: 26px; font-weight: 700; color: #1a2942; letter-spacing: -1px; }
+  .hpe-logo span { color: #01c875; }
+  .login-title { color: #1a2942; font-size: 20px; font-weight: 600; }
+  .login-subtitle { color: #444; font-size: 13px; }
+  .login-body { padding: 32px; }
+  .login-body h2 { text-align: center; font-size: 20px; font-weight: 600; margin-bottom: 24px; color: #222; }
+  .field-label { font-size: 13px; font-weight: 500; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .field-label .icon { font-size: 14px; }
+  .login-body input {
+    width: 100%; padding: 12px 14px; border: 1.5px solid #d0d5dd;
+    border-radius: 6px; font-size: 15px; outline: none; margin-bottom: 18px;
+    transition: border-color .2s;
+  }
+  .login-body input:focus { border-color: #5b7fe8; }
+  .btn-signin {
+    width: 100%; padding: 13px; background: #5b7fe8; color: #fff; border: none;
+    border-radius: 6px; font-size: 15px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background .2s;
+  }
+  .btn-signin:hover { background: #4a6ed4; }
+  .login-footer { text-align: center; margin-top: 18px; font-size: 13px; color: #666; }
+  .login-footer a { color: #5b7fe8; text-decoration: none; font-weight: 500; }
+  .login-error { color: #e05a5a; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+
+  /* ── MAIN APP SHELL ── */
+  #app { display: none; min-height: 100vh; }
+  .navbar {
+    background: linear-gradient(90deg, #3a6bd4 0%, #5b9bd5 100%);
+    padding: 0 24px; display: flex; align-items: center; gap: 0; height: 52px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 10px; margin-right: 32px; }
+  .nav-logo { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+  .nav-logo span { color: #00e88f; }
+  .nav-appname { color: #fff; font-size: 15px; font-weight: 600; }
+  .nav-links { display: flex; gap: 0; flex: 1; }
+  .nav-link {
+    color: rgba(255,255,255,.85); padding: 0 16px; height: 52px; display: flex;
+    align-items: center; gap: 6px; font-size: 14px; cursor: pointer;
+    text-decoration: none; transition: background .15s; border: none; background: none;
+  }
+  .nav-link:hover, .nav-link.active { background: rgba(255,255,255,.15); color: #fff; }
+  .nav-user { margin-left: auto; color: #fff; font-size: 14px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  .page { display: none; padding: 28px 32px; }
+  .page.active { display: block; }
+
+  /* ── DASHBOARD ── */
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .page-header p { color: #888; font-size: 14px; margin-top: 2px; }
+
+  .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  .stat-card {
+    background: #fff; border-radius: 10px; padding: 20px 22px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 1px 6px rgba(0,0,0,.07);
+  }
+  .stat-card .label { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .stat-card .value { font-size: 34px; font-weight: 700; color: #222; }
+  .stat-card .icon { font-size: 30px; opacity: .7; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 420px; gap: 20px; }
+  .panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.07); overflow: hidden; }
+  .panel-header {
+    background: #5b7fe8; color: #fff; padding: 14px 20px;
+    font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px;
+  }
+  .panel-header.right { background: #3a6bd4; }
+  table { width: 100%; border-collapse: collapse; }
+  table th { text-align: left; padding: 13px 20px; font-size: 14px; font-weight: 600; color: #555; border-bottom: 1px solid #eee; }
+  table td { padding: 13px 20px; font-size: 14px; border-bottom: 1px solid #f5f5f5; }
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-analyzed { background: #00c875; color: #fff; }
+  .badge-uploaded { background: #888; color: #fff; }
+  .badge-draft { background: #555; color: #fff; }
+  .badge-verified { background: #00c875; color: #fff; }
+  .btn-view { background: #555e6d; color: #fff; border: none; padding: 7px 16px; border-radius: 5px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .btn-view:hover { background: #444; }
+  .btn-delete { background: #fff; color: #999; border: 1px solid #ddd; padding: 7px 12px; border-radius: 5px; font-size: 13px; cursor: pointer; }
+  .btn-delete:hover { background: #fee; color: #c0392b; border-color: #c0392b; }
+  .recent-analysis-item { padding: 14px 20px; border-bottom: 1px solid #f5f5f5; display: flex; align-items: center; justify-content: space-between; }
+  .recent-analysis-item:last-child { border-bottom: none; }
+  .ra-title { font-size: 14px; font-weight: 500; }
+  .ra-date { font-size: 13px; color: #888; margin-top: 2px; }
+
+  /* ── ANALYSIS STATS ── */
+  .analysis-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+  .analysis-stat-card { border-radius: 10px; padding: 22px; color: #fff; }
+  .analysis-stat-card .num { font-size: 40px; font-weight: 700; }
+  .analysis-stat-card .lbl { font-size: 12px; font-weight: 600; letter-spacing: 1px; margin-top: 4px; opacity: .9; }
+  .bg-blue { background: #4a90d9; }
+  .bg-red { background: #e05a5a; }
+  .bg-orange { background: #e8a020; }
+  .bg-purple { background: #7c5cbf; }
+  .bg-pink { background: #d45ea0; }
+  .bg-green { background: #00b87a; }
+  .bg-gray { background: #555e6d; }
+
+  /* ── CRITICAL ISSUES ── */
+  .section-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .subsection-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #e05a5a; }
+  .alert-box { background: #fff5f5; border: 1px solid #fcc; border-radius: 6px; padding: 12px 18px; font-size: 13px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .log-entry { background: #fff; border: 1px solid #eee; border-radius: 6px; padding: 14px 18px; margin-bottom: 12px; font-family: monospace; font-size: 12.5px; line-height: 1.7; color: #333; word-break: break-all; }
+  .log-line-badge { display: inline-block; background: #e05a5a; color: #fff; border-radius: 4px; padding: 2px 10px; font-size: 11px; font-weight: 600; margin-right: 10px; }
+
+  /* ── ANOMALY DETECTION ── */
+  .info-box { background: #eef3ff; border-left: 4px solid #5b7fe8; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; font-size: 14px; }
+  .info-box strong { color: #3a5bbd; }
+  .detail-box { background: #f4f6ff; border: 1px solid #d0d9f5; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .detail-box h4 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .detail-box ul { padding-left: 18px; font-size: 14px; line-height: 2; color: #444; }
+  .anomaly-entry { background: #fff; border: 1px solid #eee; border-left: 4px solid #e05a5a; border-radius: 6px; padding: 14px 18px; margin-bottom: 12px; font-family: monospace; font-size: 12px; position: relative; word-break: break-all; }
+  .error-score { position: absolute; top: 10px; right: 14px; background: #fff; border: 1.5px solid #ddd; border-radius: 20px; font-size: 11px; padding: 3px 10px; font-family: 'Roboto', sans-serif; display: flex; align-items: center; gap: 5px; }
+  .err-icon { color: #e05a5a; }
+
+  /* ── VERIFY REPORT ── */
+  .verify-panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.07); overflow: hidden; max-width: 860px; margin: 0 auto; }
+  .verify-panel-header { background: #5b7fe8; color: #fff; padding: 14px 24px; font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .verify-body { padding: 28px 28px; }
+  .verify-body h3 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .verify-body p.sub { font-size: 13px; color: #888; margin-bottom: 20px; }
+  .info-green { background: #f0fbf5; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .info-green h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .info-green ul { padding-left: 18px; font-size: 13px; line-height: 2; color: #333; }
+  .info-blue { background: #e8f4fd; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .info-blue h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .info-blue ul { padding-left: 18px; font-size: 13px; line-height: 2; color: #333; }
+  .verify-notes-label { font-size: 13px; font-weight: 500; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .verify-notes { width: 100%; border: 1px solid #d5d9e0; border-radius: 6px; padding: 12px; font-size: 13px; min-height: 80px; outline: none; resize: vertical; }
+  .verify-actions { display: flex; gap: 12px; margin-top: 20px; }
+  .btn-verify { background: #00a86b; color: #fff; border: none; padding: 11px 22px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+  .btn-verify:hover { background: #008f5b; }
+  .btn-cancel { background: #fff; color: #555; border: 1.5px solid #ccc; padding: 11px 22px; border-radius: 6px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+
+  /* ── VERIFICATION INFO ── */
+  .verified-card { border: 1.5px solid #b2dfc8; border-radius: 8px; overflow: hidden; }
+  .verified-card-header { background: #d4f5e4; padding: 12px 20px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #1a7a45; }
+  .verified-card-body { background: #fff; }
+  .verified-row { display: flex; padding: 12px 20px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .verified-row:last-child { border-bottom: none; }
+  .verified-row .vkey { font-weight: 600; width: 180px; color: #333; }
+  .verified-row .vval { color: #444; }
+  .pdf-icon { margin-top: 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .pdf-icon .pdf-img { width: 48px; height: 56px; background: linear-gradient(135deg, #fff 60%, #fce0e0); border: 1.5px solid #e0b0b0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #c0392b; cursor: pointer; }
+  .pdf-icon span { font-size: 11px; color: #555; text-align: center; }
+
+  /* ── REPORT PAGE ── */
+  .report-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; background: #fff; border-radius: 10px; padding: 28px; box-shadow: 0 1px 6px rgba(0,0,0,.07); margin-bottom: 24px; }
+  .meta-block h4 { font-size: 15px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+  .meta-row { display: flex; gap: 8px; font-size: 14px; margin-bottom: 10px; }
+  .meta-row .mk { font-weight: 700; min-width: 130px; }
+
+  /* ── UPLOAD PAGE ── */
+  .upload-drop { border: 2px dashed #b0bcdc; border-radius: 10px; background: #f7f9ff; padding: 60px 48px; text-align: center; cursor: pointer; transition: border-color .2s; }
+  .upload-drop:hover { border-color: #5b7fe8; }
+  .upload-drop .up-icon { font-size: 56px; margin-bottom: 16px; }
+  .upload-drop h3 { font-size: 19px; font-weight: 600; margin-bottom: 8px; }
+  .upload-drop p { font-size: 14px; color: #888; }
+  .upload-input { display: none; }
+  .btn-upload { background: #5b7fe8; color: #fff; border: none; padding: 11px 26px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 18px; }
+  .uploaded-files { margin-top: 24px; }
+
+  /* ── VIEW LOG FILES PAGE ── */
+  .search-bar { display: flex; gap: 12px; margin-bottom: 20px; }
+  .search-bar input { flex: 1; padding: 11px 14px; border: 1.5px solid #d0d5dd; border-radius: 6px; font-size: 14px; outline: none; }
+  .search-bar input:focus { border-color: #5b7fe8; }
+
+  /* toast */
+  #toast { position: fixed; bottom: 28px; right: 28px; background: #1a2942; color: #fff; padding: 14px 24px; border-radius: 8px; font-size: 14px; display: none; z-index: 999; }
+
+  .divider-line { height: 1px; background: #3a6bd4; margin-bottom: 20px; }
+
+  /* loading overlay */
+  #loadingOverlay { position: fixed; inset: 0; background: rgba(255,255,255,.7); display: none; align-items: center; justify-content: center; z-index: 9999; font-size: 18px; color: #3a6bd4; font-weight: 600; gap: 12px; }
+
+  .empty-state { padding: 40px; text-align: center; color: #aaa; font-size: 15px; }
+
+  /* download buttons */
+  .download-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .btn-dl { padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .btn-dl-pdf { background: #c0392b; color: #fff; }
+  .btn-dl-json { background: #2980b9; color: #fff; }
+  .btn-dl-txt { background: #27ae60; color: #fff; }
+  .btn-dl:hover { opacity: .85; }
+
+  .no-logs-msg { padding: 20px; text-align: center; color: #aaa; font-size: 14px; }
+  /* Login page logo */
+.logo {
+    height: 40px;
+    width: auto;
+}
+
+/* Navbar logo */
+.nav-logo-img {
+    height: 32px;
+    width: auto;
+}
+
+/* Align navbar properly */
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.login-header {
+    display: flex;
+    align-items: center;
+}
+
+.login-title {
+    font-size: 25px;
+    font-weight: 600;
+    color: #2f4ea2;   /* HPE-style blue */
+}
+/* Login page logo */
+.logo {
+    height: 42px;
+    width: auto;
+}
+
+/* Navbar logo */
+.nav-logo-img {
+    height: 34px;
+    width: auto;
+}
+
+/* Proper alignment */
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.login-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-title {
+    font-weight: 600;
+}
+
+.login-subtitle {
+    text-align: center;
+    margin-top: 4px;
+    color: #5f6f8f;   /* soft grey-blue */
+}
+
+  /* ── LOG VIEWER ── */
+  .log-viewer-entry { background: #fff; border: 1px solid #eee; border-radius: 6px; padding: 10px 16px; margin-bottom: 8px; font-family: monospace; font-size: 12px; line-height: 1.6; word-break: break-all; display: flex; gap: 10px; align-items: flex-start; }
+  .log-viewer-entry .lv-line { background: #5b7fe8; color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+  .log-viewer-entry .lv-ts { color: #888; font-size: 10px; white-space: nowrap; flex-shrink: 0; }
+  .log-viewer-entry .lv-msg { flex: 1; }
+  .log-viewer-entry .lv-label { border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+  .lv-ERROR { background: #e05a5a; color: #fff; }
+  .lv-CRITICAL { background: #7c5cbf; color: #fff; }
+  .lv-WARNING { background: #e8a020; color: #fff; }
+  .lv-INFO { background: #00b87a; color: #fff; }
+  .lv-DEBUG { background: #555e6d; color: #fff; }
+  .lv-ANOMALY { background: #d45ea0; color: #fff; }
+  /* model select */
+  .model-select { padding: 6px 10px; border: 1.5px solid #d0d5dd; border-radius: 5px; font-size: 13px; outline: none; background: #fff; cursor: pointer; }
+  .model-select:focus { border-color: #5b7fe8; }
+  /* filter buttons */
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .btn-filter { padding: 7px 16px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; background: #333; color: #fff; transition: background .15s, color .15s; }
+  .btn-filter.active { background: #5b7fe8; color: #fff; }
+  .btn-filter-error { background: #e05a5a; color: #fff; }
+  .btn-filter-error.active { background: #e05a5a; border-color: #e05a5a; color: #fff; }
+  .btn-filter-warning { background: #e8a020; color: #fff; }
+  .btn-filter-warning.active { background: #e8a020; border-color: #e8a020; color: #fff; }
+  .btn-filter-critical { background: #7c5cbf; color: #fff; }
+  .btn-filter-critical.active { background: #7c5cbf; border-color: #7c5cbf; color: #fff; }
+  .btn-filter-info { background: #00b87a; color: #fff; }
+  .btn-filter-info.active { background: #00b87a; border-color: #00b87a; color: #fff; }
+  .btn-filter-debug { background: #555e6d; color: #fff; }
+  .btn-filter-debug.active { background: #555e6d; border-color: #555e6d; color: #fff; }
+  .btn-filter-anomaly { background: #d45ea0; color: #fff; }
+  .btn-filter-anomaly.active { background: #d45ea0; border-color: #d45ea0; color: #fff; }
+  .btn-filter-events { background: #2980b9; color: #fff; }
+  .btn-filter-events.active { background: #2980b9; border-color: #2980b9; color: #fff; }
+  .btn-filter-duplicates { background: #8e44ad; color: #fff; }
+  .btn-filter-duplicates.active { background: #8e44ad; border-color: #8e44ad; color: #fff; }
+  .btn-back { background: #fff; color: #555; border: 1.5px solid #ccc; padding: 8px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 18px; }
+  .btn-back:hover { background: #f0f2f5; color: #333; }
+  .btn-analyze { background: #555e6d; color: #fff; border: none; padding: 7px 16px; border-radius: 5px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .btn-analyze:hover { background: #444; }
+
+  /* ── GRAPHS MODAL ── */
+  .graphs-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 2000;
+    display: none; align-items: flex-start; justify-content: center;
+    overflow-y: auto; padding: 40px 20px;
+  }
+  .graphs-overlay.active { display: flex; }
+  .graphs-container {
+    background: #fff; border-radius: 14px; width: 100%; max-width: 1200px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.2); padding: 0; position: relative;
+  }
+  .graphs-header {
+    background: linear-gradient(135deg, #3a6bd4, #5b9bd5); color: #fff;
+    padding: 22px 32px; border-radius: 14px 14px 0 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .graphs-header h2 { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .graphs-close {
+    background: rgba(255,255,255,.2); border: none; color: #fff; font-size: 22px;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .graphs-close:hover { background: rgba(255,255,255,.35); }
+  .graphs-body { padding: 32px; }
+  .graphs-algo-title {
+    font-size: 18px; font-weight: 700; color: #1a2942; margin: 28px 0 16px 0;
+    padding-bottom: 8px; border-bottom: 2px solid #3a6bd4;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .graphs-algo-title:first-child { margin-top: 0; }
+  .graphs-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;
+  }
+  .graph-card {
+    background: #f7f9ff; border: 1px solid #e0e6f0; border-radius: 10px;
+    padding: 20px; text-align: center;
+  }
+  .graph-card h4 {
+    font-size: 14px; font-weight: 600; color: #3a6bd4; margin-bottom: 12px;
+  }
+  .graph-card canvas { max-height: 300px; }
+  .metrics-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
+  }
+  .metric-pill {
+    background: #fff; border: 1.5px solid #d0d9f5; border-radius: 8px;
+    padding: 14px 10px; text-align: center;
+  }
+  .metric-pill .metric-val { font-size: 28px; font-weight: 700; }
+  .metric-pill .metric-lbl { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+  .comparison-section { margin-top: 16px; }
+  .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .btn-graphs {
+    background: #555e6d; color: #fff; border: none; padding: 7px 14px;
+    border-radius: 5px; font-size: 13px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn-graphs:hover { background: #444; }
+
+  /* ── COMPARE PANEL ── */
+  .compare-panel {
+    background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.07);
+    margin-top: 20px; overflow: hidden;
+  }
+  .compare-panel-header {
+    background: #555e6d; color: #fff;
+    padding: 16px 24px; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .compare-body { padding: 24px; }
+  .compare-body p { font-size: 14px; color: #666; margin-bottom: 16px; }
+  .compare-algo-grid {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .compare-algo-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: #f7f9ff; border: 1.5px solid #d0d9f5; border-radius: 8px;
+    padding: 10px 18px; cursor: pointer; transition: all .2s; user-select: none;
+  }
+  .compare-algo-chip:hover { border-color: #5b7fe8; background: #eef3ff; }
+  .compare-algo-chip.selected { border-color: #555e6d; background: #f0f2f5; box-shadow: 0 0 0 2px rgba(85,94,109,.15); }
+  .compare-algo-chip input[type="checkbox"] { accent-color: #3a6bd4; width: 16px; height: 16px; cursor: pointer; }
+  .compare-algo-chip .chip-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .compare-algo-chip .chip-label { font-size: 14px; font-weight: 500; color: #1a2942; }
+  .compare-actions { display: flex; align-items: center; gap: 16px; }
+  .btn-compare {
+    background: #555e6d; color: #fff; border: none;
+    padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    transition: all .2s;
+  }
+  .btn-compare:hover { background: #444; }
+  .btn-compare:disabled { opacity: .5; cursor: not-allowed; }
+  .compare-hint { font-size: 13px; color: #999; }
+
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN PAGE ═══════════ -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+          {% load static %}
+        <img src="{% static 'logo.svg' %}" alt="HPE Logo" class="logo">          
+        <div class="login-title">Skytrace Alpha 1.0</div>
+        </div>
+        <div class="login-subtitle">Machine Learning based Log Analysis System</div>
+      </div>
+    </div>
+    <div class="login-body">
+      <h2>Welcome Back</h2>
+      <div class="field-label"><span class="icon">✉</span> Email</div>
+      <input type="email" id="loginEmail" placeholder="your@email.com" onkeydown="if(event.key==='Enter') doLogin()">
+      <div class="field-label"><span class="icon">🔒</span> Password</div>
+      <input type="password" id="loginPass" placeholder="Password" onkeydown="if(event.key==='Enter') doLogin()">
+      <button class="btn-signin" onclick="doLogin()">➜ Sign In / Register</button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-footer">New user? Just enter your email — we'll create your account automatically.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MAIN APP ═══════════ -->
+<div id="app">
+  <nav class="navbar">
+    <div class="nav-brand">
+      <img src="{% static 'logo.svg' %}" alt="HPE Logo" class="nav-logo-img">
+      <div class="nav-appname">Skytrace Alpha 1.0</div>
+    </div>
+    <div class="nav-links">
+      <button class="nav-link active" onclick="showPage('dashboard',this)">🏠 Dashboard</button>
+      <button class="nav-link" onclick="showPage('upload',this)">⬆ Upload Log</button>
+      <button class="nav-link" onclick="showPage('viewlogs',this)">📄 View Log Files</button>
+      <button class="nav-link" onclick="showPage('analysis',this)">📊 Analysis</button>
+      <button class="nav-link" onclick="showPage('verify',this)">✔ Verify Report</button>
+    </div>
+    <div class="nav-user" onclick="doLogout()">👤 <span id="navUserName">User</span> ▾</div>
+  </nav>
+
+  <!-- ─── DASHBOARD ─── -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <h1>🎯 Dashboard</h1>
+      <p id="dashWelcome">Welcome!</p>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div><div class="label">Total Logs</div><div class="value" id="statTotalLogs">0</div></div>
+        <div class="icon">📄</div>
+      </div>
+      <div class="stat-card">
+        <div><div class="label">Analyzed</div><div class="value" id="statAnalyzed">0</div></div>
+        <div class="icon" style="color:#00c875;">✅</div>
+      </div>
+      <div class="stat-card">
+        <div><div class="label">Total Analysis</div><div class="value" id="statTotalAnalysis">0</div></div>
+        <div class="icon" style="color:#5b7fe8;">📊</div>
+      </div>
+      <div class="stat-card">
+        <div><div class="label">Verified</div><div class="value" id="statVerified">0</div></div>
+        <div class="icon" style="color:#e8a020;">⭐</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-header">📄 Recent Log Files</div>
+        <table>
+          <tr><th>File ID</th><th>Filename</th><th>Size</th><th>Status</th><th>Upload Date</th><th>Actions</th></tr>
+          <tbody id="dashRecentLogs"><tr><td colspan="6" class="no-logs-msg">No logs yet.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="panel-header right">📊 Recent Analysis</div>
+        <div id="dashRecentReports"><div class="no-logs-msg">No reports yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── UPLOAD LOG ─── -->
+  <div id="page-upload" class="page">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 120px);">
+      <div style="text-align:center;margin-bottom:32px;">
+        <h1 style="font-size:26px;font-weight:700;color:#1a2942;margin-bottom:6px;">⬆ Upload Log File</h1>
+        <p style="font-size:14px;color:#888;">Upload your storage networking log files for ML-powered analysis</p>
+      </div>
+      <div style="background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:40px;width:100%;max-width:860px;">
+        <div class="upload-drop" id="dropZone" onclick="document.getElementById('fileInput').click()"
+             ondragover="event.preventDefault();this.style.borderColor='#5b7fe8';this.style.background='#eef3ff'"
+             ondragleave="this.style.borderColor='#b0bcdc';this.style.background='#f7f9ff'"
+             ondrop="event.preventDefault();this.style.borderColor='#b0bcdc';this.style.background='#f7f9ff';handleFiles(event.dataTransfer.files)"
+             style="border:2.5px dashed #b0bcdc;border-radius:12px;background:#f7f9ff;padding:70px 40px;text-align:center;cursor:pointer;transition:all .25s;">
+          <div style="font-size:64px;margin-bottom:18px;opacity:.85;">☁️</div>
+          <h3 style="font-size:22px;font-weight:700;color:#1a2942;margin-bottom:8px;">Drag & Drop your log files here</h3>
+          <p style="font-size:15px;color:#888;margin-bottom:24px;">or click to browse from your computer</p>
+          <button class="btn-upload" onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="background:linear-gradient(135deg,#5b7fe8,#3a6bd4);color:#fff;border:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 10px rgba(90,127,232,.3);transition:transform .15s,box-shadow .15s;">Browse Files</button>
+          <input type="file" id="fileInput" class="upload-input" accept=".txt,.log" multiple onchange="handleFiles(this.files)">
+          <div style="margin-top:24px;display:flex;justify-content:center;gap:24px;font-size:13px;color:#999;">
+            <span>📄 .txt, .log files</span>
+            <span>📦 Max 50MB each</span>
+            <span>📂 Multiple files supported</span>
+          </div>
+        </div>
+        <div id="uploadedList" class="uploaded-files"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── VIEW LOG FILES ─── -->
+  <div id="page-viewlogs" class="page">
+    <div class="page-header">
+      <h1>📄 View Log Files</h1>
+      <p>All uploaded log files</p>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="🔍  Search log files..." oninput="filterLogs()">
+    </div>
+    <div class="panel">
+      <div class="panel-header">📄 All Log Files</div>
+      <table>
+        <tr><th>File ID</th><th>#</th><th>Filename</th><th>Size</th><th>Status</th><th>Upload Date</th><th>Actions</th></tr>
+        <tbody id="logsTableBody"><tr><td colspan="7" class="no-logs-msg">No logs uploaded yet.</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- ── Compare Algorithms Panel ── -->
+    <div class="compare-panel" id="comparePanel" style="display:none;">
+      <div class="compare-panel-header">📈 Compare Algorithms</div>
+      <div class="compare-body">
+
+        <!-- Step 1: Build an entry -->
+        <div style="font-size:14px;font-weight:600;color:#1a2942;margin-bottom:6px;">Step 1: Select algorithm(s) for an entry</div>
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">Pick one algorithm for a single entry, or pick multiple to create a hybrid. Then click "Add to Comparison".</p>
+        <div class="compare-algo-grid" id="entryBuilderGrid"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:14px;">
+          <button id="btnAddEntry" disabled onclick="addEntry()" style="background:#555e6d;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">➕ Add to Comparison</button>
+          <span id="entryBuilderHint" style="font-size:13px;color:#999;">Pick at least 1 algorithm</span>
+        </div>
+
+        <!-- Step 2: Entries list -->
+        <div style="margin-top:24px;padding-top:20px;border-top:1.5px solid #e0e6f0;">
+          <div style="font-size:14px;font-weight:600;color:#1a2942;margin-bottom:10px;">Step 2: Your comparison entries</div>
+          <div id="entriesList" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="color:#999;font-size:13px;">No entries added yet. Add at least 2 entries above.</div>
+          </div>
+        </div>
+
+        <!-- Step 3: Compare -->
+        <div class="compare-actions" style="margin-top:24px;padding-top:20px;border-top:1.5px solid #e0e6f0;">
+          <button class="btn-compare" id="btnCompare" disabled onclick="runComparison()">📊 Compare All Entries</button>
+          <span class="compare-hint" id="compareHint">Add at least 2 entries to compare</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ANALYSIS ─── -->
+  <div id="page-analysis" class="page">
+    <div id="analysisContent">
+      <div class="empty-state">
+        <div style="font-size:48px;margin-bottom:16px;">📊</div>
+        <div style="font-size:16px;font-weight:600;color:#555;">No analysis selected</div>
+        <div style="font-size:13px;margin-top:8px;">Go to <b>View Log Files</b> and click <b>👁 View</b> on a log to analyze it.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── VERIFY REPORT ─── -->
+  <div id="page-verify" class="page">
+    <div class="section-title">✔ Verify Report</div>
+    <div id="verifyContent">
+      <div class="empty-state">
+        <div style="font-size:48px;margin-bottom:16px;">✔</div>
+        <div style="font-size:16px;font-weight:600;color:#555;">No report selected for verification</div>
+        <div style="font-size:13px;margin-top:8px;">Analyze a log first, then come here to verify.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ═══════════ GRAPHS OVERLAY ═══════════ -->
+<div class="graphs-overlay" id="graphsOverlay">
+  <div class="graphs-container">
+    <div class="graphs-header">
+      <h2>📊 <span id="graphsTitle">Analyze Graphs</span></h2>
+      <button class="graphs-close" onclick="closeGraphs()">✕</button>
+    </div>
+    <div class="graphs-body" id="graphsBody">
+      <div class="empty-state">Loading graphs...</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast">✅ Action completed!</div>
+
+<div id="loadingOverlay">
+  <span>⏳</span> <span id="loadingMsg">Processing...</span>
+</div>
+
+<script>
+// ── STATE ──
+let currentUser = null;
+let currentEmail = null;
+let allLogs = [];
+let currentReportId = null;
+let currentReport = null;
+const CSRF = '{{ csrf_token }}';
+
+// ── HELPERS ──
+function getCsrf() { return CSRF; }
+
+function showToast(msg, ms=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', ms);
+}
+
+function showLoading(msg='Processing...') {
+  document.getElementById('loadingMsg').textContent = msg;
+  document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function badgeHtml(status) {
+  const map = { analyzed:'badge-analyzed', uploaded:'badge-uploaded', verified:'badge-verified', draft:'badge-draft' };
+  const cls = map[status] || 'badge-uploaded';
+  return `<span class="badge ${cls}">${status.charAt(0).toUpperCase()+status.slice(1)}</span>`;
+}
+
+// ── AUTH ──
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!email || !pass) { errEl.textContent = 'Please enter email and password.'; errEl.style.display='block'; return; }
+  if (!email.includes('@') || !email.split('@')[1].includes('.')) { errEl.textContent = 'Please enter a valid email address.'; errEl.style.display='block'; return; }
+
+  showLoading('Signing in...');
+  try {
+    const res = await fetch('/auth/login/', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+    hideLoading();
+    if (data.success) {
+      currentUser = data.user;
+      currentEmail = data.email;
+      document.getElementById('navUserName').textContent = currentUser;
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      showPage('dashboard', document.querySelectorAll('.nav-link')[0]);
+      loadDashboard();
+      loadLogs();
+    } else {
+      errEl.textContent = data.error || 'Login failed.';
+      errEl.style.display = 'block';
+    }
+  } catch (e) {
+    hideLoading();
+    errEl.textContent = 'Server error. Please try again.';
+    errEl.style.display = 'block';
+  }
+}
+
+async function doLogout() {
+  await fetch('/auth/logout/', { method: 'GET' });
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+  currentUser = null; allLogs = []; currentReportId = null; currentReport = null;
+}
+
+// ── NAVIGATION ──
+let navHistory = [];
+
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  else {
+    const navMap = { dashboard: 0, upload: 1, viewlogs: 2, analysis: 3, verify: 4 };
+    const idx = navMap[id];
+    if (idx !== undefined) document.querySelectorAll('.nav-link')[idx]?.classList.add('active');
+  }
+  if (id === 'dashboard') loadDashboard();
+  if (id === 'viewlogs') loadLogs();
+}
+
+function navigateTo(id) {
+  navHistory.push(document.querySelector('.page.active')?.id?.replace('page-', '') || 'dashboard');
+  showPage(id);
+}
+
+function goBack() {
+  const prev = navHistory.pop() || 'viewlogs';
+  showPage(prev);
+}
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/dashboard/');
+    const data = await res.json();
+    if (data.error) return;
+
+    document.getElementById('dashWelcome').textContent = `Welcome, ${currentUser || 'User'}!`;
+    document.getElementById('statTotalLogs').textContent = data.total_logs;
+    document.getElementById('statAnalyzed').textContent = data.analyzed_logs;
+    document.getElementById('statTotalAnalysis').textContent = data.total_analysis;
+    document.getElementById('statVerified').textContent = data.verified;
+
+    // Recent logs
+    const tbody = document.getElementById('dashRecentLogs');
+    if (data.recent_logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="no-logs-msg">No logs uploaded yet.</td></tr>';
+    } else {
+      tbody.innerHTML = data.recent_logs.map(log => `
+        <tr>
+          <td style="font-weight:600;color:#3a6bd4;">#${log.id}</td>
+          <td>📄 ${escHtml(log.filename)}</td>
+          <td>${log.size}</td>
+          <td>${badgeHtml(log.status)}</td>
+          <td>${log.uploaded_at}</td>
+          <td><button class="btn-view" onclick="viewLog(${log.id})">👁 View</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // Recent reports
+    const rptDiv = document.getElementById('dashRecentReports');
+    if (data.recent_reports.length === 0) {
+      rptDiv.innerHTML = '<div class="no-logs-msg">No reports yet.</div>';
+    } else {
+      rptDiv.innerHTML = data.recent_reports.map(r => `
+        <div class="recent-analysis-item">
+          <div><div class="ra-title">Report for ${escHtml(r.filename)}</div><div class="ra-date">${r.generated_at}</div></div>
+          ${badgeHtml(r.status)}
+        </div>
+      `).join('');
+    }
+  } catch(e) {}
+}
+
+// ── LOGS ──
+async function loadLogs() {
+  try {
+    const res = await fetch('/api/logs/');
+    const data = await res.json();
+    if (data.error) return;
+    allLogs = data.logs;
+    renderLogsTable(allLogs);
+  } catch(e) {}
+}
+
+function renderLogsTable(logs) {
+  const tbody = document.getElementById('logsTableBody');
+  if (logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="no-logs-msg">No logs uploaded yet.</td></tr>';
+    document.getElementById('comparePanel').style.display = 'none';
+    return;
+  }
+  tbody.innerHTML = logs.map(log => `
+    <tr>
+      <td style="font-weight:600;color:#3a6bd4;">#${log.id}</td>
+      <td>${log.index}</td>
+      <td>📄 ${escHtml(log.filename)}</td>
+      <td>${log.size}</td>
+      <td>${badgeHtml(log.status)}</td>
+      <td>${log.uploaded_at}</td>
+      <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <select class="model-select" id="model-${log.id}" title="Select ML Model">
+          <option value="" disabled selected>-- Select Algorithm --</option>
+          <option value="GRU">GRU</option>
+          <option value="LSTM">LSTM</option>
+          <option value="Isolation Forest">Isolation Forest</option>
+          <option value="GRU AE">GRU AE</option>
+          <option value="LSTM+GRU">LSTM+GRU (Hybrid)</option>
+          <option value="Isolation Forest + GRU AE">Isolation Forest + GRU AE</option>
+        </select>
+        <button class="btn-view" onclick="viewLogContent(${log.id})">👁 View</button>
+        <button class="btn-analyze" onclick="analyzeLog(${log.id})">🔬 Analyze</button>
+        <button class="btn-graphs" onclick="openGraphs(${log.id})">📊 Graphs</button>
+        <button class="btn-graphs" onclick="openComparePanel(${log.id})">⚖ Compare</button>
+        <button class="btn-delete" onclick="deleteLog(${log.id})" title="Delete">🗑</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterLogs() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = allLogs.filter(l => l.filename.toLowerCase().includes(q));
+  renderLogsTable(filtered);
+}
+
+async function deleteLog(logId) {
+  if (!confirm('Delete this log file?')) return;
+  showLoading('Deleting...');
+  try {
+    const res = await fetch(`/api/delete-log/${logId}/`, {
+      method: 'DELETE', headers: { 'X-CSRFToken': getCsrf() }
+    });
+    const data = await res.json();
+    hideLoading();
+    if (data.success) { showToast('🗑 Log deleted.'); loadLogs(); loadDashboard(); }
+  } catch(e) { hideLoading(); }
+}
+
+// ── UPLOAD ──
+async function handleFiles(files) {
+  const list = document.getElementById('uploadedList');
+  list.innerHTML = '';
+
+  for (const f of Array.from(files)) {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (!['txt','log'].includes(ext)) {
+      list.innerHTML += `<div style="padding:10px 14px;background:#fff5f5;border:1px solid #fcc;border-radius:6px;margin-top:10px;font-size:13px;">⚠ ${escHtml(f.name)} — only .txt/.log allowed</div>`;
+      continue;
+    }
+
+    const itemId = 'upload-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    list.innerHTML += `<div id="${itemId}" style="padding:10px 14px;background:#f7f9ff;border:1px solid #d0d9f5;border-radius:6px;margin-top:10px;font-size:13px;display:flex;align-items:center;justify-content:space-between;">
+      <span>📄 ${escHtml(f.name)} (${(f.size/1024/1024).toFixed(2)} MB)</span>
+      <span style="color:#888;">⏳ Uploading...</span>
+    </div>`;
+
+    const formData = new FormData();
+    formData.append('file', f);
+    try {
+      const res = await fetch('/api/upload/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+        body: formData
+      });
+      const data = await res.json();
+      const el = document.getElementById(itemId);
+      if (data.success) {
+        el.querySelector('span:last-child').innerHTML = `<span style="color:#00a86b;font-weight:600;">✔ Uploaded (File ID: #${data.id})</span>`;
+        showToast(`✅ ${f.name} uploaded! File ID: #${data.id}`);
+        loadLogs(); loadDashboard();
+      } else {
+        el.querySelector('span:last-child').innerHTML = `<span style="color:#e05a5a;">${data.error}</span>`;
+      }
+    } catch(e) {
+      const el = document.getElementById(itemId);
+      if (el) el.querySelector('span:last-child').innerHTML = '<span style="color:#e05a5a;">Upload failed</span>';
+    }
+  }
+  document.getElementById('fileInput').value = '';
+  // Auto-redirect to View Log Files after upload completes
+  setTimeout(() => {
+    showPage('viewlogs', document.querySelectorAll('.nav-link')[2]);
+  }, 800);
+}
+
+// ── ANALYSIS ──
+
+// Keep viewLog for dashboard quick-view (opens analysis page if report exists)
+async function viewLog(logId) {
+  viewLogContent(logId);
+}
+
+async function viewLogContent(logId) {
+  navigateTo('analysis');
+  document.getElementById('analysisContent').innerHTML = '<div class="empty-state"><div style="font-size:40px;">⏳</div><div style="margin-top:12px;font-size:15px;color:#555;">Loading log file...</div></div>';
+  showLoading('Loading log content...');
+  try {
+    const res = await fetch(`/api/view-log/${logId}/`);
+    const data = await res.json();
+    hideLoading();
+    if (data.error) {
+      document.getElementById('analysisContent').innerHTML = `<div class="empty-state">${data.error}</div>`;
+      return;
+    }
+    renderLogViewer(data);
+  } catch(e) {
+    hideLoading();
+    document.getElementById('analysisContent').innerHTML = '<div class="empty-state">Failed to load log file.</div>';
+  }
+}
+
+async function analyzeLog(logId) {
+  const sel = document.getElementById('model-' + logId);
+  const model = sel ? sel.value : '';
+  if (!model) {
+    showToast('⚠ Please select an algorithm before analyzing.');
+    if (sel) { sel.style.borderColor = '#e05a5a'; setTimeout(() => sel.style.borderColor = '', 2000); }
+    return;
+  }
+  navigateTo('analysis');
+  document.getElementById('analysisContent').innerHTML = '<div class="empty-state"><div style="font-size:40px;">⏳</div><div style="margin-top:12px;font-size:15px;color:#555;">Running ' + model + ' analysis...</div></div>';
+  showLoading('Running ' + model + ' analysis...');
+  try {
+    const res = await fetch(`/api/analysis/${logId}/?model=${encodeURIComponent(model)}`);
+    const data = await res.json();
+    hideLoading();
+    if (data.error) {
+      document.getElementById('analysisContent').innerHTML = `<div class="empty-state">${data.error}</div>`;
+      return;
+    }
+    currentReport = data;
+    currentReportId = data.report_id;
+    renderAnalysis(data);
+    renderVerifyPanel(data);
+    loadDashboard();
+  } catch(e) {
+    hideLoading();
+    document.getElementById('analysisContent').innerHTML = '<div class="empty-state">Analysis failed.</div>';
+  }
+}
+
+function renderLogViewer(data) {
+  const entries = data.entries || [];
+  const entriesHtml = entries.map(e => {
+    const labelCls = 'lv-' + (e.label || 'INFO');
+    return `<div class="log-viewer-entry">
+      <span class="lv-line">Line ${e.line}</span>
+      ${e.timestamp ? '<span class="lv-ts">' + escHtml(e.timestamp) + '</span>' : ''}
+      <span class="lv-msg">${escHtml(e.message || e.raw)}</span>
+      <span class="lv-label ${labelCls}">${e.label}</span>
+    </div>`;
+  }).join('') || '<div class="no-logs-msg">No content found.</div>';
+
+  document.getElementById('analysisContent').innerHTML = `
+    <button class="btn-back" onclick="navigateTo('viewlogs')">← Back to Log Files</button>
+    <div class="section-title">📄 ${escHtml(data.filename)}</div>
+    <p style="font-size:14px;color:#888;margin-bottom:20px;">File ID: <strong>#${data.id}</strong> &nbsp;|&nbsp; Uploaded: ${data.uploaded_at} &nbsp;|&nbsp; Size: ${data.size} &nbsp;|&nbsp; ${data.total} lines shown</p>
+    <div style="max-height:600px;overflow-y:auto;padding-right:4px;">
+      ${entriesHtml}
+    </div>
+  `;
+}
+
+function _getAlgoInsight(model) {
+  const insights = {
+    'GRU': 'These lines were detected as anomalies using <strong>GRU</strong> (Gated Recurrent Unit). The model learns normal log patterns and flags anomalies based on sequence prediction error. Higher scores indicate stronger anomalies.',
+    'LSTM': 'These lines were detected as anomalies using <strong>LSTM</strong> (Long Short-Term Memory). The model uses cell state and forget gates to learn temporal dependencies in log sequences, flagging entries with high reconstruction error.',
+    'Isolation Forest': 'These lines were detected as anomalies using <strong>Isolation Forest</strong>. The algorithm isolates observations by randomly selecting features and split values. Anomalies are easier to isolate and have shorter path lengths.',
+    'GRU AE': 'These lines were detected as anomalies using <strong>GRU Autoencoder</strong>. The model encodes log patterns into a compressed representation and reconstructs them. Lines with high reconstruction error combined with rare bigram patterns are flagged as anomalies.',
+    'LSTM+GRU': 'These lines were detected as anomalies using <strong>LSTM+GRU Hybrid</strong>. This unified sequential architecture feeds input through an LSTM cell-state layer followed by a GRU gating layer in a single forward pass. The combined hidden states produce richer temporal representations, catching anomalies that individual models might miss.',
+    'Isolation Forest + GRU AE': 'These lines were detected as anomalies using the <strong>Isolation Forest + GRU AE Hybrid</strong>. This model combines tree-based structural isolation with autoencoder reconstruction error. The Isolation Forest scores lines by path length in random trees (shorter = more anomalous), while the GRU Autoencoder scores by bidirectional reconstruction error. Both scores are combined with adaptive quality-based weighting for higher detection accuracy.',
+  };
+  return insights[model] || insights['GRU'];
+}
+
+function _getAlgoDetails(model, count) {
+  const details = {
+    'GRU': `
+      <li>Algorithm: GRU (Gated Recurrent Unit)</li>
+      <li>Detection Method: Sequence modeling + Prediction error analysis</li>
+      <li>Gate Mechanism: Reset gate controls how much past information to forget</li>
+      <li>Anomaly Score: Higher scores = Higher prediction error = More anomalous</li>
+      <li>Threshold: Top 8% most anomalous patterns</li>
+      <li>Total Anomalies: ${count}</li>`,
+    'LSTM': `
+      <li>Algorithm: LSTM (Long Short-Term Memory)</li>
+      <li>Detection Method: Cell state reconstruction + Temporal error analysis</li>
+      <li>Gate Mechanism: Forget gate + Input gate + Cell state for long-term memory</li>
+      <li>Anomaly Score: Higher scores = Higher reconstruction error = More anomalous</li>
+      <li>Threshold: Top 5% most anomalous patterns</li>
+      <li>Total Anomalies: ${count}</li>`,
+    'Isolation Forest': `
+      <li>Algorithm: Isolation Forest (Hyperparameter-Tuned)</li>
+      <li>Detection Method: Real isolation trees with path-length anomaly scoring</li>
+      <li>Features: 20 features — structural + semantic (severity labels, polarity, error/warning signals)</li>
+      <li>Tuning: Internal grid search across 6 configs (n_trees, subsample, max_depth, feature blend)</li>
+      <li>Feature Weighting: Kurtosis (70%) + Variance (30%) for better outlier discrimination</li>
+      <li>Threshold: Accuracy-optimised (searched across 17 percentile cutoffs, 0.2%–20%)</li>
+      <li>Total Anomalies: ${count}</li>`,
+    'GRU AE': `
+      <li>Algorithm: GRU Autoencoder</li>
+      <li>Detection Method: Encode-decode reconstruction + Bigram rarity analysis</li>
+      <li>Architecture: Encoder compresses features → Bottleneck → Decoder reconstructs</li>
+      <li>Anomaly Score: Combined reconstruction error (60%) + Bigram rarity (40%)</li>
+      <li>Threshold: Top 7% most anomalous patterns</li>
+      <li>Total Anomalies: ${count}</li>`,
+    'LSTM+GRU': `
+      <li>Algorithm: LSTM+GRU Hybrid (Unified Sequential Architecture)</li>
+      <li>Detection Method: Dual-layer recurrent processing with combined hidden state scoring</li>
+      <li>Architecture: LSTM layer (forget + input gates → cell state) → GRU layer (reset + update gates → hidden state)</li>
+      <li>Scoring: Prediction error (40%) + Dual reconstruction error (60%) from both hidden states</li>
+      <li>Advantage: Captures both long-term dependencies (LSTM cell) and short-term dynamics (GRU gating)</li>
+      <li>Threshold: Top 9% most anomalous patterns</li>
+      <li>Total Anomalies: ${count}</li>`,
+    'Isolation Forest + GRU AE': `
+      <li>Algorithm: Isolation Forest + GRU Autoencoder Hybrid</li>
+      <li>Detection Method: Tree-based path isolation combined with bidirectional autoencoder reconstruction</li>
+      <li>Architecture: Isolation Forest (adaptive grid-searched trees) + GRU AE (forward + backward pass)</li>
+      <li>Features: 32 features — 18 structural + 14 semantic (sentiment polarity, signal words, IP/port detection)</li>
+      <li>Scoring: Quality-adaptive weighting — IF score × w₁ + GRU AE score × w₂ (weights auto-tuned per dataset)</li>
+      <li>Hyperparameter Tuning: Internal grid search across 6 configs (n_trees, subsample, max_depth, feature blend)</li>
+      <li>Threshold: Accuracy-optimised (searched across 17 percentile cutoffs)</li>
+      <li>Total Anomalies: ${count}</li>`,
+  };
+  return details[model] || details['GRU'];
+}
+
+function renderAnalysis(data) {
+  const allEntries = data.all_entries || [];
+  const anomalyLineNums = new Set((data.anomaly_lines || []).map(a => a.line));
+  const eventLineNums = new Set((data.event_entries || []).map(e => e.line));
+
+  const allEntriesWithAnomaly = allEntries.map(e => ({
+    ...e,
+    isAnomaly: anomalyLineNums.has(e.line),
+    isEvent: eventLineNums.has(e.line),
+  }));
+
+  window._analysisEntries = allEntriesWithAnomaly;
+  window._duplicateSummary = data.duplicate_summary || [];
+  window._topIssues = data.top_issues || [];
+  window._activeFilter = 'ERROR';
+
+  const modelName = data.model_name || 'GRU';
+
+  document.getElementById('analysisContent').innerHTML = `
+    <button class="btn-back" onclick="navigateTo('viewlogs')">← Back to Log Files</button>
+    <div class="section-title">📊 Analysis for ${escHtml(data.filename)}</div>
+    <p style="font-size:14px;color:#888;margin-bottom:20px;">Generated on ${data.generated_at} &nbsp;|&nbsp; Model: <strong>${escHtml(modelName)}</strong> &nbsp;|&nbsp; File ID: <strong>#${data.log_id}</strong></p>
+
+    <div class="report-meta-grid">
+      <div class="meta-block">
+        <h4 style="color:#3a6bd4;">ℹ Report Information</h4>
+        <div class="meta-row"><span class="mk">Report ID:</span><span>#${data.report_id}</span></div>
+        <div class="meta-row"><span class="mk">Status:</span>${badgeHtml(data.status)}</div>
+        <div class="meta-row"><span class="mk">Generated:</span><span>${data.generated_at}</span></div>
+        <div class="meta-row"><span class="mk">ML Model:</span><span>${escHtml(modelName)}</span></div>
+      </div>
+      <div class="meta-block">
+        <h4 style="color:#3a6bd4;">📄 Log File Information</h4>
+        <div class="meta-row"><span class="mk">File ID:</span><span>#${data.log_id}</span></div>
+        <div class="meta-row"><span class="mk">Filename:</span><span>${escHtml(data.filename)}</span></div>
+        <div class="meta-row"><span class="mk">File Size:</span><span>${data.file_size}</span></div>
+        <div class="meta-row"><span class="mk">Uploaded:</span><span>${data.uploaded_at}</span></div>
+      </div>
+    </div>
+
+    <div class="section-title">📊 Analysis Statistics</div>
+    <div class="divider-line"></div>
+    <div class="analysis-stats-grid">
+      <div class="analysis-stat-card bg-blue"><div class="num">${data.total_lines}</div><div class="lbl">TOTAL LOGS</div></div>
+      <div class="analysis-stat-card bg-red"><div class="num">${data.error_count}</div><div class="lbl">ERRORS</div></div>
+      <div class="analysis-stat-card bg-orange"><div class="num">${data.warning_count}</div><div class="lbl">WARNINGS</div></div>
+      <div class="analysis-stat-card bg-purple"><div class="num">${data.critical_count}</div><div class="lbl">CRITICAL</div></div>
+    </div>
+    <div class="analysis-stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:28px;">
+      <div class="analysis-stat-card bg-pink"><div class="num">${data.anomaly_count}</div><div class="lbl">ANOMALY</div></div>
+      <div class="analysis-stat-card bg-green"><div class="num">${data.info_count}</div><div class="lbl">INFO</div></div>
+      <div class="analysis-stat-card bg-gray"><div class="num">${data.debug_count}</div><div class="lbl">DEBUG</div></div>
+      <div class="analysis-stat-card" style="background:#2980b9;"><div class="num">${data.event_count || 0}</div><div class="lbl">EVENTS</div></div>
+      <div class="analysis-stat-card" style="background:#8e44ad;"><div class="num">${data.duplicate_count || 0}</div><div class="lbl">DUPLICATES</div></div>
+    </div>
+
+    <div class="section-title" style="margin-top:8px;">🧠 Anomaly Detection – ${escHtml(modelName)} (${data.anomaly_count})</div>
+    <div class="divider-line" style="background:#5b7fe8;"></div>
+    <div class="info-box">
+      <strong>🔬 Deep Learning Insight:</strong> ${_getAlgoInsight(modelName)}
+    </div>
+    <div class="detail-box">
+      <h4>ℹ About ${escHtml(modelName)} Anomaly Detection:</h4>
+      <ul>
+        ${_getAlgoDetails(modelName, data.anomaly_count)}
+      </ul>
+    </div>
+
+    <div class="filter-bar" style="justify-content:center;">
+      <button class="btn-filter btn-filter-error active" id="filter-ERROR" onclick="applyFilter('ERROR')">ERROR</button>
+      <button class="btn-filter btn-filter-warning" id="filter-WARNING" onclick="applyFilter('WARNING')">WARNING</button>
+      <button class="btn-filter btn-filter-critical" id="filter-CRITICAL" onclick="applyFilter('CRITICAL')">CRITICAL</button>
+      <button class="btn-filter btn-filter-info" id="filter-INFO" onclick="applyFilter('INFO')">INFO</button>
+      <button class="btn-filter btn-filter-debug" id="filter-DEBUG" onclick="applyFilter('DEBUG')">DEBUG</button>
+      <button class="btn-filter btn-filter-anomaly" id="filter-ANOMALY" onclick="applyFilter('ANOMALY')">ANOMALY</button>
+      <button class="btn-filter btn-filter-events" id="filter-EVENTS" onclick="applyFilter('EVENTS')">EVENTS</button>
+      <button class="btn-filter btn-filter-duplicates" id="filter-DUPLICATES" onclick="applyFilter('DUPLICATES')">DUPLICATES</button>
+    </div>
+    <div id="logEntriesContainer" style="max-height:500px;overflow-y:auto;"></div>
+    <div id="topIssuesContainer" style="margin-top:28px;"></div>
+
+    <div style="text-align:center;margin-top:36px;padding:28px 0;border-top:2px solid #eee;">
+      <button onclick="openFullReport()" style="background:linear-gradient(135deg,#3a6bd4,#5b9bd5);color:#fff;border:none;padding:16px 40px;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 3px 12px rgba(58,107,212,.3);display:inline-flex;align-items:center;gap:10px;">
+        📄 View Full Analysis Report & Download
+      </button>
+    </div>
+  `;
+  renderFilteredEntries('ERROR');
+  renderTopIssues();
+}
+
+function openFullReport() {
+  if (!currentReportId || !currentReport) {
+    showToast('⚠ No report available.');
+    return;
+  }
+  const data = currentReport;
+  const modelName = data.model_name || 'GRU';
+
+  document.getElementById('analysisContent').innerHTML = `
+    <button class="btn-back" onclick="renderAnalysis(currentReport);renderVerifyPanel(currentReport);">← Back to Analysis</button>
+    <div class="section-title">📄 Full Analysis Report</div>
+    <div class="divider-line"></div>
+
+    <div class="report-meta-grid">
+      <div class="meta-block">
+        <h4 style="color:#3a6bd4;">ℹ Report Details</h4>
+        <div class="meta-row"><span class="mk">Report ID:</span><span>#${data.report_id}</span></div>
+        <div class="meta-row"><span class="mk">File ID:</span><span>#${data.log_id}</span></div>
+        <div class="meta-row"><span class="mk">Filename:</span><span>${escHtml(data.filename)}</span></div>
+        <div class="meta-row"><span class="mk">File Size:</span><span>${data.file_size}</span></div>
+        <div class="meta-row"><span class="mk">Generated:</span><span>${data.generated_at}</span></div>
+        <div class="meta-row"><span class="mk">ML Model:</span><span>${escHtml(modelName)}</span></div>
+        <div class="meta-row"><span class="mk">Status:</span>${badgeHtml(data.status)}</div>
+      </div>
+      <div class="meta-block">
+        <h4 style="color:#3a6bd4;">📊 Statistics Summary</h4>
+        <div class="meta-row"><span class="mk">Total Lines:</span><span>${data.total_lines}</span></div>
+        <div class="meta-row"><span class="mk">Errors:</span><span style="color:#e05a5a;font-weight:600;">${data.error_count}</span></div>
+        <div class="meta-row"><span class="mk">Warnings:</span><span style="color:#e8a020;font-weight:600;">${data.warning_count}</span></div>
+        <div class="meta-row"><span class="mk">Critical:</span><span style="color:#7c5cbf;font-weight:600;">${data.critical_count}</span></div>
+        <div class="meta-row"><span class="mk">Info:</span><span>${data.info_count}</span></div>
+        <div class="meta-row"><span class="mk">Debug:</span><span>${data.debug_count}</span></div>
+        <div class="meta-row"><span class="mk">Anomalies:</span><span style="color:#d45ea0;font-weight:600;">${data.anomaly_count}</span></div>
+        <div class="meta-row"><span class="mk">Events:</span><span>${data.event_count || 0}</span></div>
+        <div class="meta-row"><span class="mk">Duplicates:</span><span>${data.duplicate_count || 0}</span></div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:28px;">⬇ Download Report</div>
+    <div class="divider-line"></div>
+    <p style="font-size:14px;color:#666;margin-bottom:20px;">Download the complete analysis report:</p>
+    <div class="download-btns" style="gap:16px;">
+      <button class="btn-dl btn-dl-pdf" onclick="downloadReport('pdf')" style="padding:14px 28px;font-size:15px;">📕 Download PDF Report</button>
+    </div>
+  `;
+}
+
+function applyFilter(filterName) {
+  document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('filter-' + filterName);
+  if (btn) btn.classList.add('active');
+  window._activeFilter = filterName;
+  renderFilteredEntries(filterName);
+}
+
+function renderFilteredEntries(filterName) {
+  const entries = window._analysisEntries || [];
+  const container = document.getElementById('logEntriesContainer');
+  if (!container) return;
+
+  const labelColorMap = {
+    ERROR: '#e05a5a', CRITICAL: '#7c5cbf', WARNING: '#e8a020',
+    INFO: '#00b87a', DEBUG: '#555e6d', ANOMALY: '#d45ea0',
+    EVENTS: '#2980b9', DUPLICATES: '#8e44ad', HIGH: '#e05a5a'
+  };
+
+  // Handle DUPLICATES view — use server-provided duplicate_summary
+  if (filterName === 'DUPLICATES') {
+    const dupes = (window._duplicateSummary || []).filter(g => g.message && g.message.trim().length > 2);
+
+    if (dupes.length === 0) {
+      container.innerHTML = '<div class="no-logs-msg">No duplicate entries found.</div>';
+      return;
+    }
+
+    container.innerHTML = dupes.slice(0, 200).map(g => {
+      const count = g.count;
+      const impact = g.impact || 'LOW';
+      const sevColor = impact === 'HIGH' ? '#e05a5a' : (impact === 'MEDIUM' ? '#e8a020' : '#888');
+      return `<div style="background:#fff;border:1px solid #eee;border-left:4px solid ${sevColor};border-radius:6px;padding:20px 22px;margin-bottom:16px;position:relative;">
+        <span style="background:#e05a5a;color:#fff;border-radius:4px;padding:4px 14px;font-size:13px;font-weight:700;">${count} times</span>
+        <span style="position:absolute;top:16px;right:18px;background:${sevColor};color:#fff;border-radius:4px;padding:4px 14px;font-size:13px;font-weight:700;">${impact}</span>
+        <div style="margin-top:14px;font-size:15px;line-height:1.7;color:#222;">${escHtml(g.message)}</div>
+        <div style="margin-top:14px;font-size:14px;line-height:1.8;color:#444;"><strong>Lines:</strong> ${g.lines.join(', ')}</div>
+      </div>`;
+    }).join('') + (dupes.length > 200 ? `<div class="no-logs-msg">Showing 200 of ${dupes.length} duplicate groups.</div>` : '');
+    return;
+  }
+
+  // Filter entries for other categories
+  let filtered;
+  if (filterName === 'ALL') {
+    filtered = entries;
+  } else if (filterName === 'ANOMALY') {
+    filtered = entries.filter(e => e.isAnomaly);
+  } else if (filterName === 'EVENTS') {
+    filtered = entries.filter(e => e.isEvent);
+  } else {
+    filtered = entries.filter(e => e.label === filterName);
+  }
+
+  // Remove empty/blank lines
+  filtered = filtered.filter(e => (e.raw || e.message || '').trim().length > 0);
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="no-logs-msg">No entries for this filter.</div>';
+    return;
+  }
+
+  // Determine the badge label for the current filter
+  const getBadgeLabel = (e) => {
+    if (filterName === 'ANOMALY') return 'ANOMALY';
+    if (filterName === 'EVENTS') return 'EVENTS';
+    return e.label;
+  };
+  const getBadgeColor = (e) => {
+    const lbl = getBadgeLabel(e);
+    return labelColorMap[lbl] || '#888';
+  };
+
+  container.innerHTML = filtered.slice(0, 500).map(e => {
+    const badgeLabel = getBadgeLabel(e);
+    const badgeColor = getBadgeColor(e);
+    return `<div style="background:#fff;border:1px solid #eee;border-radius:6px;padding:18px 22px;margin-bottom:14px;position:relative;">
+      <span style="background:#e05a5a;color:#fff;border-radius:4px;padding:4px 14px;font-size:13px;font-weight:700;">Line ${e.line}</span>
+      <span style="position:absolute;top:16px;right:18px;background:${badgeColor};color:#fff;border-radius:4px;padding:4px 14px;font-size:13px;font-weight:700;">${badgeLabel}</span>
+      <div style="margin-top:12px;font-size:15px;line-height:1.7;color:#222;">${escHtml(e.raw || e.message)}</div>
+    </div>`;
+  }).join('') + (filtered.length > 500 ? `<div class="no-logs-msg">Showing 500 of ${filtered.length} entries.</div>` : '');
+}
+
+function renderTopIssues() {
+  const container = document.getElementById('topIssuesContainer');
+  if (!container) return;
+
+  const topIssues = (window._topIssues || []).filter(g => g.message && g.message.trim().length > 2);
+
+  if (topIssues.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="section-title" style="margin-top:32px;">🔥 Top Issues</div>
+    <div class="divider-line"></div>
+    <div style="background:#fff;border-radius:10px;padding:24px;box-shadow:0 1px 6px rgba(0,0,0,.07);">
+      ${topIssues.map((g, i) => `
+        <div style="padding:14px 0;border-bottom:1px solid #f0f0f0;${i === topIssues.length - 1 ? 'border-bottom:none;' : ''}">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <span style="background:#e05a5a;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${i + 1}</span>
+            <div style="flex:1;">
+              <div style="font-size:14px;line-height:1.6;color:#222;word-break:break-word;">${escHtml(g.message)}</div>
+              <div style="margin-top:6px;font-size:13px;color:#888;"><strong style="color:#e05a5a;">${g.count} occurrences</strong></div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderVerifyPanel(data) {
+  const modelName = data.model_name || 'GRU';
+  document.getElementById('verifyContent').innerHTML = `
+    <div class="verify-panel">
+      <div class="verify-panel-header">✔ Verify Report</div>
+      <div class="verify-body">
+        <h3>Report for ${escHtml(data.filename)}</h3>
+        <p class="sub">Report #${data.report_id} &nbsp;|&nbsp; Model: ${escHtml(modelName)} &nbsp;|&nbsp; Generated: ${data.generated_at}</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+          <div class="info-blue">
+            <h4>📄 File Details</h4>
+            <ul>
+              <li>File ID: #${data.log_id}</li>
+              <li>Filename: ${escHtml(data.filename)}</li>
+              <li>File Size: ${data.file_size}</li>
+              <li>ML Model: ${escHtml(modelName)}</li>
+            </ul>
+          </div>
+          <div class="info-blue">
+            <h4>📊 Analysis Summary</h4>
+            <ul>
+              <li>Total Lines: ${data.total_lines}</li>
+              <li>Errors: ${data.error_count}</li>
+              <li>Warnings: ${data.warning_count}</li>
+              <li>Critical: ${data.critical_count}</li>
+              <li>Info: ${data.info_count} &nbsp;|&nbsp; Debug: ${data.debug_count}</li>
+              <li>Anomalies: ${data.anomaly_count}</li>
+              <li>Events: ${data.event_count || 0} &nbsp;|&nbsp; Duplicates: ${data.duplicate_count || 0}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="info-green">
+          <h4>ℹ What happens after verification?</h4>
+          <ul>
+            <li>Report status will be changed to "Verified"</li>
+            <li>A complete analysis report will be automatically saved to the server</li>
+            <li>You can download the report in multiple formats (TXT, JSON, PDF)</li>
+          </ul>
+        </div>
+        <div class="verify-notes-label">📝 Verification Notes</div>
+        <textarea class="verify-notes" id="verifyNotes" placeholder="Add verification notes..."></textarea>
+        <div class="verify-actions">
+          <button class="btn-verify" onclick="doVerify()">✔ Verify &amp; Approve</button>
+          <button class="btn-cancel" onclick="navigateTo('analysis')">✕ Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div id="verifyResult" style="display:none;margin-top:28px;max-width:860px;margin-left:auto;margin-right:auto;">
+      <div class="section-title">✔ Verification</div>
+      <div class="divider-line"></div>
+      <div class="verified-card">
+        <div class="verified-card-header">✅ Verified Report</div>
+        <div class="verified-card-body">
+          <div class="verified-row"><span class="vkey">Verified By:</span><span class="vval" id="vBy"></span></div>
+          <div class="verified-row"><span class="vkey">Verification Date:</span><span class="vval" id="vDate"></span></div>
+          <div class="verified-row"><span class="vkey">Notes:</span><span class="vval" id="vNotes"></span></div>
+        </div>
+      </div>
+      <div style="margin-top:20px;">
+        <div class="download-btns">
+          <button class="btn-dl btn-dl-pdf" onclick="downloadReport('pdf')">⬇ PDF</button>
+          <button class="btn-dl btn-dl-json" onclick="downloadReport('json')">⬇ JSON</button>
+          <button class="btn-dl btn-dl-txt" onclick="downloadReport('txt')">⬇ TXT</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function doVerify() {
+  if (!currentReportId) { showToast('⚠ No report selected. Analyze a log first.'); return; }
+  const notes = document.getElementById('verifyNotes').value.trim() || 'Report verified and approved.';
+  showLoading('Verifying report...');
+  try {
+    const res = await fetch(`/api/verify/${currentReportId}/`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ notes })
+    });
+    const data = await res.json();
+    hideLoading();
+    if (data.success) {
+      document.getElementById('vBy').textContent = data.verified_by;
+      document.getElementById('vDate').textContent = data.verified_at;
+      document.getElementById('vNotes').textContent = data.notes;
+      document.getElementById('verifyResult').style.display = 'block';
+      document.getElementById('verifyResult').scrollIntoView({ behavior: 'smooth' });
+      showToast('✅ Report verified successfully!');
+      loadDashboard();
+    }
+  } catch(e) { hideLoading(); showToast('Verification failed.'); }
+}
+
+async function downloadReport(fmt) {
+  if (!currentReportId) { showToast('⚠ No report available.'); return; }
+  showLoading('Generating ' + fmt.toUpperCase() + ' report...');
+  try {
+    const res = await fetch(`/api/download/${currentReportId}/${fmt}/`);
+    if (!res.ok) {
+      const text = await res.text();
+      hideLoading();
+      showToast('⚠ ' + (text || 'Download failed.'));
+      return;
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report_${currentReportId}.${fmt === 'txt' ? 'txt' : fmt}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    hideLoading();
+    showToast('✅ ' + fmt.toUpperCase() + ' report downloaded!');
+  } catch(e) {
+    hideLoading();
+    showToast('⚠ Download failed.');
+  }
+}
+
+// ── COMPARE ALGORITHMS ──
+const ALL_ALGOS = [
+  { name: 'GRU', color: '#3a6bd4' },
+  { name: 'LSTM', color: '#00b87a' },
+  { name: 'Isolation Forest', color: '#e8a020' },
+  { name: 'GRU AE', color: '#d45ea0' },
+  { name: 'LSTM+GRU', color: '#7c5cbf' },
+  { name: 'Isolation Forest + GRU AE', color: '#2bb5a0' },
+];
+let _compareLogId = null;
+// Each entry is an array of algorithm names. Single = ['GRU'], Hybrid = ['GRU','LSTM']
+let _entries = [];
+
+function openComparePanel(logId) {
+  _compareLogId = logId;
+  _entries = [];
+  document.getElementById('comparePanel').style.display = 'block';
+
+  // Build the entry builder checkboxes
+  document.getElementById('entryBuilderGrid').innerHTML = ALL_ALGOS.map(a => `
+    <label class="compare-algo-chip" onclick="setTimeout(updateEntryBuilder,0)">
+      <input type="checkbox" name="entry-algo" value="${a.name}">
+      <span class="chip-dot" style="background:${a.color};"></span>
+      <span class="chip-label">${a.name}</span>
+    </label>
+  `).join('');
+
+  renderEntriesList();
+  updateEntryBuilder();
+  updateCompareState();
+  document.getElementById('comparePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function updateEntryBuilder() {
+  const checked = document.querySelectorAll('input[name="entry-algo"]:checked');
+  const btn = document.getElementById('btnAddEntry');
+  const hint = document.getElementById('entryBuilderHint');
+
+  document.querySelectorAll('#entryBuilderGrid .compare-algo-chip').forEach(chip => {
+    const cb = chip.querySelector('input');
+    chip.classList.toggle('selected', cb.checked);
+  });
+
+  if (checked.length === 0) {
+    btn.disabled = true;
+    hint.textContent = 'Pick at least 1 algorithm';
+  } else {
+    btn.disabled = false;
+    const names = Array.from(checked).map(c => c.value);
+    if (names.length === 1) {
+      hint.textContent = `Will add: ${names[0]} (single)`;
+    } else {
+      hint.textContent = `Will add: ${names.join(' + ')} (hybrid)`;
+    }
+  }
+}
+
+function addEntry() {
+  const checked = document.querySelectorAll('input[name="entry-algo"]:checked');
+  const parts = Array.from(checked).map(c => c.value);
+  if (parts.length === 0) return;
+
+  // Check for duplicate
+  const key = parts.slice().sort().join('+');
+  const exists = _entries.some(e => e.slice().sort().join('+') === key);
+  if (exists) { showToast('⚠ This entry already exists.'); return; }
+
+  _entries.push(parts);
+
+  // Uncheck all
+  checked.forEach(c => c.checked = false);
+  document.querySelectorAll('#entryBuilderGrid .compare-algo-chip').forEach(chip => chip.classList.remove('selected'));
+  updateEntryBuilder();
+  renderEntriesList();
+  updateCompareState();
+}
+
+function removeEntry(idx) {
+  _entries.splice(idx, 1);
+  renderEntriesList();
+  updateCompareState();
+}
+
+function renderEntriesList() {
+  const container = document.getElementById('entriesList');
+  if (_entries.length === 0) {
+    container.innerHTML = '<div style="color:#999;font-size:13px;">No entries added yet. Add at least 2 entries above.</div>';
+    return;
+  }
+
+  container.innerHTML = _entries.map((entry, i) => {
+    const isHybrid = entry.length > 1;
+    // A single entry that itself is a hybrid model (name contains '+')
+    const isHybridModel = entry.length === 1 && entry[0].includes('+');
+    const label = entry.join(' + ');
+    const typeBg = isHybrid ? '#555e6d' : (isHybridModel ? '#2bb5a0' : '#888');
+    const typeLbl = isHybrid ? 'HYBRID' : (isHybridModel ? 'HYBRID MODEL' : 'SINGLE');
+    const dots = entry.map(name => {
+      const a = ALL_ALGOS.find(x => x.name === name);
+      const col = a ? a.color : '#666';
+      return `<span style="width:8px;height:8px;border-radius:50%;background:${col};display:inline-block;"></span>`;
+    }).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;background:#f7f9ff;border:1.5px solid #d0d5dd;border-radius:8px;padding:12px 16px;">
+      <span style="background:#555e6d;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${i + 1}</span>
+      <span style="display:flex;align-items:center;gap:4px;">${dots}</span>
+      <span style="font-size:14px;font-weight:600;color:#1a2942;flex:1;">${escHtml(label)}</span>
+      <span style="font-size:11px;color:#fff;background:${typeBg};padding:3px 10px;border-radius:4px;font-weight:600;">${typeLbl}</span>
+      <button onclick="removeEntry(${i})" style="background:none;border:none;color:#999;font-size:18px;cursor:pointer;padding:0 4px;" title="Remove">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function updateCompareState() {
+  const btn = document.getElementById('btnCompare');
+  const hint = document.getElementById('compareHint');
+
+  if (_entries.length < 2) {
+    btn.disabled = true;
+    hint.textContent = _entries.length === 0
+      ? 'Add at least 2 entries to compare'
+      : `1 entry added — add at least 1 more`;
+  } else {
+    btn.disabled = false;
+    const labels = _entries.map(e => e.join(' + '));
+    hint.textContent = `Ready: ${labels.join('  vs  ')}`;
+  }
+}
+
+async function runComparison() {
+  if (!_compareLogId) { showToast('⚠ No log file selected.'); return; }
+  if (_entries.length < 2) { showToast('⚠ Add at least 2 entries.'); return; }
+
+  // Separate singles from hybrids
+  const singles = _entries.filter(e => e.length === 1).map(e => e[0]);
+  const hybrids = _entries.filter(e => e.length > 1);
+
+  document.getElementById('graphsOverlay').classList.add('active');
+  const allLabels = _entries.map(e => e.join(' + '));
+  document.getElementById('graphsBody').innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:40px;">⏳</div>
+      <div style="margin-top:12px;">Running: ${allLabels.join('  vs  ')}...</div>
+    </div>`;
+
+  const params = new URLSearchParams();
+  if (singles.length > 0) params.set('models', singles.join(','));
+  if (hybrids.length > 0) params.set('hybrids', hybrids.map(h => h.join('~')).join('|'));
+
+  try {
+    const res = await fetch(`/api/graphs/${_compareLogId}/?${params.toString()}`);
+    const data = await res.json();
+    if (!data.success) {
+      document.getElementById('graphsBody').innerHTML = `<div class="empty-state">⚠ ${data.error || 'Failed.'}</div>`;
+      return;
+    }
+    document.getElementById('graphsTitle').textContent = `Algorithm Comparison — ${data.filename}`;
+    renderComparisonOnly(data.results);
+  } catch(e) {
+    document.getElementById('graphsBody').innerHTML = '<div class="empty-state">⚠ Comparison failed.</div>';
+  }
+}
+
+function renderComparisonOnly(results) {
+  window._graphCharts = window._graphCharts || [];
+  window._graphCharts.forEach(c => c.destroy());
+  window._graphCharts = [];
+
+  const algoNames = Object.keys(results);
+
+  // Dynamic color assignment
+  const HYBRID_PALETTE = [
+    { bg: 'rgba(124,92,191,0.7)', border: '#7c5cbf' },
+    { bg: 'rgba(41,128,185,0.7)', border: '#2980b9' },
+    { bg: 'rgba(192,57,43,0.7)', border: '#c0392b' },
+    { bg: 'rgba(39,174,96,0.7)', border: '#27ae60' },
+    { bg: 'rgba(243,156,18,0.7)', border: '#f39c12' },
+    { bg: 'rgba(52,73,94,0.7)', border: '#34495e' },
+  ];
+  let hybridIdx = 0;
+  const colorMap = {};
+  algoNames.forEach(name => {
+    if (ALGO_COLORS[name]) {
+      colorMap[name] = ALGO_COLORS[name];
+    } else {
+      colorMap[name] = HYBRID_PALETTE[hybridIdx % HYBRID_PALETTE.length];
+      hybridIdx++;
+    }
+  });
+
+  const bgColors = algoNames.map(a => colorMap[a].bg);
+  const borderColors = algoNames.map(a => colorMap[a].border);
+
+  // ── "What vs What" banner ──
+  const vsBanner = algoNames.map(algo => {
+    const col = colorMap[algo].border;
+    const r = results[algo];
+    const typeLbl = r.is_hybrid ? 'HYBRID' : 'BASE';
+    const typeBg = r.is_hybrid ? '#8e44ad' : '#3a6bd4';
+    return `<div style="display:flex;align-items:center;gap:8px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:${col};flex-shrink:0;"></span>
+      <span style="font-size:18px;font-weight:700;color:#1a2942;">${escHtml(algo)}</span>
+      <span style="background:${typeBg};color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">${typeLbl}</span>
+    </div>`;
+  }).join('<span style="font-size:22px;font-weight:700;color:#e05a5a;margin:0 16px;">vs</span>');
+
+  // ── Build HTML ──
+  let html = `
+    <div style="background:linear-gradient(135deg,#f7f9ff,#eef3ff);border:1.5px solid #d0d9f5;border-radius:12px;padding:24px 32px;margin-bottom:28px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;">
+      ${vsBanner}
+    </div>
+
+    <div class="graphs-algo-title" style="border-color:#1a2942; margin-top:0;">📋 Comparison Summary</div>
+    <div style="overflow-x:auto;margin-bottom:32px;">
+      <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+        <thead>
+          <tr style="background:linear-gradient(135deg,#1a2942,#3a6bd4);color:#fff;">
+            <th style="padding:14px 20px;text-align:left;font-size:13px;">Algorithm</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">Type</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">Accuracy</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">Sensitivity</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">Specificity</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">Precision</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">F1 Score</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">Speed (ms)</th>
+            <th style="padding:14px 16px;text-align:center;font-size:13px;">Memory (MB)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${algoNames.map((algo, i) => {
+            const r = results[algo];
+            const col = colorMap[algo].border;
+            const typeBadge = r.is_hybrid
+              ? '<span style="background:#8e44ad;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;">HYBRID</span>'
+              : '<span style="background:#3a6bd4;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;">BASE</span>';
+            return `<tr style="border-bottom:1px solid #f0f0f0;${i % 2 ? 'background:#f7f9ff;' : ''}">
+              <td style="padding:12px 20px;font-weight:600;"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:${col};display:inline-block;"></span>${escHtml(algo)}</span></td>
+              <td style="padding:12px 16px;text-align:center;">${typeBadge}</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;">${(r.accuracy*100).toFixed(1)}%</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;">${((r.sensitivity||r.recall)*100).toFixed(1)}%</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;">${((r.specificity||0)*100).toFixed(1)}%</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;">${(r.precision*100).toFixed(1)}%</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;">${(r.f1_score*100).toFixed(1)}%</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;color:#e67e22;">${r.speed_ms} ms</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;color:#8e44ad;">${r.memory_mb} MB</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="graphs-algo-title" style="border-color:#3a6bd4;">📊 Metric-wise Comparison</div>
+    <div class="comparison-grid" style="margin-bottom:24px;">
+      <div class="graph-card"><h4>Accuracy (%)</h4><canvas id="cmpx_accuracy"></canvas></div>
+      <div class="graph-card"><h4>Precision (%)</h4><canvas id="cmpx_precision"></canvas></div>
+    </div>
+    <div class="comparison-grid" style="margin-bottom:24px;">
+      <div class="graph-card"><h4>Sensitivity (%)</h4><canvas id="cmpx_sensitivity"></canvas></div>
+      <div class="graph-card"><h4>Specificity (%)</h4><canvas id="cmpx_specificity"></canvas></div>
+    </div>
+    <div class="comparison-grid" style="margin-bottom:24px;">
+      <div class="graph-card"><h4>Recall (%)</h4><canvas id="cmpx_recall"></canvas></div>
+      <div class="graph-card"><h4>F1 Score (%)</h4><canvas id="cmpx_f1"></canvas></div>
+    </div>
+    <div class="comparison-grid" style="margin-bottom:24px;">
+      <div class="graph-card"><h4>Speed (ms) — Lower is Better</h4><canvas id="cmpx_speed"></canvas></div>
+      <div class="graph-card"><h4>Memory (MB) — Lower is Better</h4><canvas id="cmpx_memory"></canvas></div>
+    </div>
+
+    <div class="graphs-algo-title" style="border-color:#e05a5a;">🔢 Confusion Matrix</div>
+    <div class="comparison-grid" style="margin-bottom:24px;">
+      ${algoNames.map(algo => {
+        const sid = safeId(algo);
+        return `<div class="graph-card"><h4>${escHtml(algo)}</h4><canvas id="cmpx_cm_${sid}"></canvas></div>`;
+      }).join('')}
+    </div>
+
+    <div class="graphs-algo-title" style="border-color:#7c5cbf;">🎯 Overall Radar</div>
+    <div style="max-width:700px;margin:0 auto 32px auto;">
+      <div class="graph-card"><h4>All Dimensions</h4><canvas id="cmpx_radar"></canvas></div>
+    </div>
+
+    <div class="graphs-algo-title" style="border-color:#d45ea0;">📈 Anomaly Score Distribution</div>
+    <div class="comparison-grid" style="margin-bottom:24px;">
+      ${algoNames.map(algo => {
+        const sid = safeId(algo);
+        return `<div class="graph-card"><h4>${escHtml(algo)}</h4><canvas id="cmpx_scoredist_${sid}"></canvas></div>`;
+      }).join('')}
+    </div>
+  `;
+
+  document.getElementById('graphsBody').innerHTML = html;
+
+  // ── DRAW CHARTS: one bar chart per metric ──
+  const metricCharts = [
+    { id: 'cmpx_accuracy',    key: 'accuracy',    label: 'Accuracy (%)',    pct: true },
+    { id: 'cmpx_precision',   key: 'precision',   label: 'Precision (%)',   pct: true },
+    { id: 'cmpx_sensitivity', key: 'sensitivity', label: 'Sensitivity (%)', pct: true },
+    { id: 'cmpx_specificity', key: 'specificity', label: 'Specificity (%)', pct: true },
+    { id: 'cmpx_recall',      key: 'recall',      label: 'Recall (%)',      pct: true },
+    { id: 'cmpx_f1',          key: 'f1_score',    label: 'F1 Score (%)',    pct: true },
+    { id: 'cmpx_speed',       key: 'speed_ms',    label: 'Speed (ms)',      pct: false },
+    { id: 'cmpx_memory',      key: 'memory_mb',   label: 'Memory (MB)',     pct: false },
+  ];
+
+  metricCharts.forEach(mc => {
+    const ctx = document.getElementById(mc.id);
+    if (!ctx) return;
+    const values = algoNames.map(a => mc.pct ? results[a][mc.key] * 100 : results[a][mc.key]);
+    window._graphCharts.push(new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: algoNames,
+        datasets: [{
+          label: mc.label,
+          data: values,
+          backgroundColor: bgColors,
+          borderColor: borderColors,
+          borderWidth: 2,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: mc.label, font: { size: 14, weight: 'bold' } },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: mc.pct ? 100 : undefined,
+            title: { display: true, text: mc.pct ? '%' : (mc.label.includes('ms') ? 'ms' : 'MB') },
+          }
+        }
+      }
+    }));
+  });
+
+  // Per-algo confusion matrices
+  algoNames.forEach(algo => {
+    const cm = results[algo].confusion_matrix;
+    const sid = safeId(algo);
+    const ctx = document.getElementById('cmpx_cm_' + sid);
+    if (!ctx) return;
+    window._graphCharts.push(new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['True Pos', 'False Pos', 'False Neg', 'True Neg'],
+        datasets: [{ data: [cm.tp, cm.fp, cm.fn, cm.tn], backgroundColor: ['#00b87a','#e8a020','#e05a5a','#3a6bd4'], borderRadius: 6 }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, title: { display: true, text: algo, font: { size: 13 } } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } }
+      }
+    }));
+  });
+
+  // Radar
+  const radarCtx = document.getElementById('cmpx_radar');
+  if (radarCtx) {
+    const maxSpeed = Math.max(...algoNames.map(a => results[a].speed_ms), 1);
+    const maxMem = Math.max(...algoNames.map(a => results[a].memory_mb), 0.001);
+    const radarDS = algoNames.map(algo => {
+      const r = results[algo];
+      const col = colorMap[algo];
+      return {
+        label: algo,
+        data: [r.accuracy*100, r.precision*100, (r.sensitivity||r.recall)*100, (r.specificity||0)*100, r.f1_score*100, (1-r.speed_ms/maxSpeed)*100, (1-r.memory_mb/maxMem)*100],
+        backgroundColor: col.bg.replace('0.7','0.15'),
+        borderColor: col.border, borderWidth: 2, pointBackgroundColor: col.border,
+      };
+    });
+    window._graphCharts.push(new Chart(radarCtx, {
+      type: 'radar',
+      data: { labels: ['Accuracy','Precision','Sensitivity','Specificity','F1 Score','Speed (faster=better)','Memory (lower=better)'], datasets: radarDS },
+      options: {
+        responsive: true,
+        plugins: { title: { display: true, text: 'Overall Performance Radar', font: { size: 14 } }, legend: { position: 'top' } },
+        scales: { r: { beginAtZero: true, max: 100, ticks: { stepSize: 20 } } }
+      }
+    }));
+  }
+
+  // Anomaly Score Distribution per algorithm (comparison view)
+  algoNames.forEach(algo => {
+    const sid = safeId(algo);
+    const r = results[algo];
+    const col = colorMap[algo];
+    const ctx = document.getElementById('cmpx_scoredist_' + sid);
+    if (ctx && r.score_distribution) {
+      const distData = r.score_distribution;
+      const thresholdVal = r.threshold || 0;
+      window._graphCharts.push(new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Normal',
+              data: distData.filter(d => d.score < thresholdVal).map(d => ({ x: d.idx, y: d.score })),
+              backgroundColor: col.bg,
+              borderColor: col.border,
+              pointRadius: 2.5,
+              borderWidth: 1,
+            },
+            {
+              label: 'Anomaly',
+              data: distData.filter(d => d.score >= thresholdVal).map(d => ({ x: d.idx, y: d.score })),
+              backgroundColor: 'rgba(224,90,90,0.8)',
+              borderColor: '#e05a5a',
+              pointRadius: 5,
+              borderWidth: 1,
+            },
+            {
+              label: 'Threshold',
+              data: [{x: distData[0].idx, y: thresholdVal}, {x: distData[distData.length-1].idx, y: thresholdVal}],
+              type: 'line',
+              borderColor: '#e05a5a',
+              borderWidth: 2,
+              borderDash: [8, 4],
+              pointRadius: 0,
+              fill: false,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: `${algo} — Score Distribution`, font: { size: 13 } },
+            legend: { position: 'top', labels: { usePointStyle: true } }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Log Entry Index' }, beginAtZero: true },
+            y: { title: { display: true, text: 'Anomaly Score' }, beginAtZero: true }
+          }
+        }
+      }));
+    }
+  });
+}
+
+// ── GRAPHS (single algo / all) ──
+const ALGO_COLORS = {
+  'GRU': { bg: 'rgba(58,107,212,0.7)', border: '#3a6bd4' },
+  'LSTM': { bg: 'rgba(0,184,122,0.7)', border: '#00b87a' },
+  'Isolation Forest': { bg: 'rgba(232,160,32,0.7)', border: '#e8a020' },
+  'GRU AE': { bg: 'rgba(212,94,160,0.7)', border: '#d45ea0' },
+  'LSTM+GRU': { bg: 'rgba(124,92,191,0.7)', border: '#7c5cbf' },
+};
+
+function closeGraphs() {
+  document.getElementById('graphsOverlay').classList.remove('active');
+  // Destroy all chart instances to free memory
+  if (window._graphCharts) {
+    window._graphCharts.forEach(c => c.destroy());
+    window._graphCharts = [];
+  }
+}
+
+async function openGraphs(logId) {
+  const sel = document.getElementById('model-' + logId);
+  const selectedModel = sel ? sel.value : '';
+
+  if (!selectedModel) {
+    showToast('⚠ Please select an algorithm first.');
+    if (sel) { sel.style.borderColor = '#e05a5a'; setTimeout(() => sel.style.borderColor = '', 2000); }
+    return;
+  }
+
+  document.getElementById('graphsOverlay').classList.add('active');
+  document.getElementById('graphsBody').innerHTML = `<div class="empty-state"><div style="font-size:40px;">⏳</div><div style="margin-top:12px;">Computing metrics for ${selectedModel}...</div></div>`;
+
+  const url = `/api/graphs/${logId}/?model=${encodeURIComponent(selectedModel)}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.success) {
+      document.getElementById('graphsBody').innerHTML = `<div class="empty-state">⚠ ${data.error || 'Failed to load graphs.'}</div>`;
+      return;
+    }
+    document.getElementById('graphsTitle').textContent = `Analyze Graphs — ${data.filename} — ${selectedModel}`;
+    renderGraphs(data.results);
+  } catch(e) {
+    document.getElementById('graphsBody').innerHTML = '<div class="empty-state">⚠ Failed to load graphs.</div>';
+  }
+}
+
+function renderGraphs(results) {
+  window._graphCharts = window._graphCharts || [];
+  window._graphCharts.forEach(c => c.destroy());
+  window._graphCharts = [];
+
+  const algoNames = Object.keys(results);
+  let html = '';
+
+  // ── Per-algorithm sections ──
+  algoNames.forEach((algo, idx) => {
+    const r = results[algo];
+    const cm = r.confusion_matrix;
+    const color = ALGO_COLORS[algo] || { bg: 'rgba(100,100,100,0.7)', border: '#666' };
+    const sid = safeId(algo);
+
+    html += `
+      <div class="graphs-algo-title" style="border-color:${color.border};">
+        🧠 ${escHtml(algo)}
+      </div>
+      <div class="metrics-summary" style="grid-template-columns:repeat(4,1fr);">
+        <div class="metric-pill"><div class="metric-val" style="color:${color.border};">${(r.accuracy * 100).toFixed(1)}%</div><div class="metric-lbl">Accuracy</div></div>
+        <div class="metric-pill"><div class="metric-val" style="color:${color.border};">${(r.precision * 100).toFixed(1)}%</div><div class="metric-lbl">Precision</div></div>
+        <div class="metric-pill"><div class="metric-val" style="color:${color.border};">${((r.sensitivity || r.recall) * 100).toFixed(1)}%</div><div class="metric-lbl">Sensitivity</div></div>
+        <div class="metric-pill"><div class="metric-val" style="color:${color.border};">${((r.specificity || 0) * 100).toFixed(1)}%</div><div class="metric-lbl">Specificity</div></div>
+      </div>
+      <div class="metrics-summary" style="grid-template-columns:repeat(4,1fr);">
+        <div class="metric-pill"><div class="metric-val" style="color:${color.border};">${(r.f1_score * 100).toFixed(1)}%</div><div class="metric-lbl">F1 Score</div></div>
+        <div class="metric-pill"><div class="metric-val" style="color:${color.border};">${(r.recall * 100).toFixed(1)}%</div><div class="metric-lbl">Recall</div></div>
+        <div class="metric-pill"><div class="metric-val" style="color:#e67e22;">${r.speed_ms}</div><div class="metric-lbl">Speed (ms)</div></div>
+        <div class="metric-pill"><div class="metric-val" style="color:#8e44ad;">${r.memory_mb}</div><div class="metric-lbl">Memory (MB)</div></div>
+      </div>
+      <div class="graphs-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="graph-card">
+          <h4>Confusion Matrix</h4>
+          <canvas id="cm_${sid}"></canvas>
+        </div>
+        <div class="graph-card">
+          <h4>Metrics Bar Chart</h4>
+          <canvas id="bar_${sid}"></canvas>
+        </div>
+        <div class="graph-card">
+          <h4>Precision vs Recall</h4>
+          <canvas id="pr_${sid}"></canvas>
+        </div>
+        <div class="graph-card">
+          <h4>Detection Summary (Pie)</h4>
+          <canvas id="pie_${sid}"></canvas>
+        </div>
+        <div class="graph-card">
+          <h4>Speed & Memory</h4>
+          <canvas id="perf_${sid}"></canvas>
+        </div>
+        <div class="graph-card">
+          <h4>Anomaly Score Distribution</h4>
+          <canvas id="scoredist_${sid}"></canvas>
+        </div>
+        <div class="graph-card">
+        <h4>ROC Curve</h4>
+        <canvas id="roc_${sid}"></canvas>
+        </div>
+      </div>
+    `;
+  });
+
+  // ── Comparison section (only if multiple algorithms) ──
+  if (algoNames.length > 1) {
+    html += `
+      <div class="comparison-section">
+        <div class="graphs-algo-title" style="border-color:#1a2942;">
+          📈 Algorithm Comparison
+        </div>
+        <div class="comparison-grid">
+          <div class="graph-card">
+            <h4>Accuracy Comparison</h4>
+            <canvas id="cmp_accuracy"></canvas>
+          </div>
+          <div class="graph-card">
+            <h4>Precision Comparison</h4>
+            <canvas id="cmp_precision"></canvas>
+          </div>
+          <div class="graph-card">
+            <h4>Sensitivity Comparison</h4>
+            <canvas id="cmp_sensitivity"></canvas>
+          </div>
+          <div class="graph-card">
+            <h4>Specificity Comparison</h4>
+            <canvas id="cmp_specificity"></canvas>
+          </div>
+          <div class="graph-card">
+            <h4>Recall Comparison</h4>
+            <canvas id="cmp_recall"></canvas>
+          </div>
+          <div class="graph-card">
+            <h4>F1 Score Comparison</h4>
+            <canvas id="cmp_f1"></canvas>
+          </div>
+        </div>
+        <div style="margin-top:24px;">
+          <div class="graph-card">
+            <h4>All Metrics Comparison (Grouped Bar)</h4>
+            <canvas id="cmp_all"></canvas>
+          </div>
+        </div>
+
+        <div class="graphs-algo-title" style="border-color:#e67e22; margin-top:36px;">
+          ⚡ Speed & Memory Comparison
+        </div>
+        <div class="comparison-grid">
+          <div class="graph-card">
+            <h4>Execution Speed (ms) — Lower is Better</h4>
+            <canvas id="cmp_speed"></canvas>
+          </div>
+          <div class="graph-card">
+            <h4>Peak Memory Usage (MB) — Lower is Better</h4>
+            <canvas id="cmp_memory"></canvas>
+          </div>
+        </div>
+        <div style="margin-top:24px;">
+          <div class="graph-card">
+            <h4>Speed vs Memory (Bubble Chart)</h4>
+            <canvas id="cmp_bubble"></canvas>
+          </div>
+        </div>
+        <div style="margin-top:24px;">
+          <div class="graph-card">
+            <h4>Overall Performance Radar</h4>
+            <canvas id="cmp_radar"></canvas>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('graphsBody').innerHTML = html;
+
+  // ── Draw per-algorithm charts ──
+  algoNames.forEach(algo => {
+    const r = results[algo];
+    const cm = r.confusion_matrix;
+    const color = ALGO_COLORS[algo] || { bg: 'rgba(100,100,100,0.7)', border: '#666' };
+    const sid = safeId(algo);
+
+    // Confusion Matrix as a heatmap-style bar chart
+    const cmCtx = document.getElementById('cm_' + sid);
+    if (cmCtx) {
+      window._graphCharts.push(new Chart(cmCtx, {
+        type: 'bar',
+        data: {
+          labels: ['True Positive', 'False Positive', 'False Negative', 'True Negative'],
+          datasets: [{
+            label: 'Count',
+            data: [cm.tp, cm.fp, cm.fn, cm.tn],
+            backgroundColor: ['#00b87a', '#e8a020', '#e05a5a', '#3a6bd4'],
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: `${algo} — Confusion Matrix`, font: { size: 13 } }
+          },
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } }
+        }
+      }));
+    }
+
+    // Metrics bar chart
+    const barCtx = document.getElementById('bar_' + sid);
+    if (barCtx) {
+      window._graphCharts.push(new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Accuracy', 'Precision', 'Sensitivity', 'Specificity', 'Recall', 'F1 Score'],
+          datasets: [{
+            label: algo,
+            data: [r.accuracy * 100, r.precision * 100, (r.sensitivity||r.recall) * 100, (r.specificity||0) * 100, r.recall * 100, r.f1_score * 100],
+            backgroundColor: [
+              'rgba(58,107,212,0.7)', 'rgba(0,184,122,0.7)',
+              'rgba(232,160,32,0.7)', 'rgba(212,94,160,0.7)',
+              'rgba(142,68,173,0.7)', 'rgba(192,57,43,0.7)'
+            ],
+            borderColor: ['#3a6bd4', '#00b87a', '#e8a020', '#d45ea0', '#8e44ad', '#c0392b'],
+            borderWidth: 2,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: `${algo} — Evaluation Metrics (%)`, font: { size: 13 } }
+          },
+          scales: {
+            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' } }
+          }
+        }
+      }));
+    }
+
+    // Precision vs Recall doughnut
+    const prCtx = document.getElementById('pr_' + sid);
+    if (prCtx) {
+      window._graphCharts.push(new Chart(prCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Precision', 'Recall', 'Remaining'],
+          datasets: [{
+            data: [
+              r.precision * 100,
+              r.recall * 100,
+              Math.max(0, 100 - Math.max(r.precision, r.recall) * 100)
+            ],
+            backgroundColor: ['#00b87a', '#e8a020', '#eee'],
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: `${algo} — Precision vs Recall`, font: { size: 13 } },
+            legend: { position: 'bottom' }
+          }
+        }
+      }));
+    }
+
+    // Detection summary pie
+    const pieCtx = document.getElementById('pie_' + sid);
+    if (pieCtx) {
+      window._graphCharts.push(new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+          labels: ['True Positive', 'False Positive', 'False Negative', 'True Negative'],
+          datasets: [{
+            data: [cm.tp, cm.fp, cm.fn, cm.tn],
+            backgroundColor: ['#00b87a', '#e8a020', '#e05a5a', '#3a6bd4'],
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: `${algo} — Detection Summary`, font: { size: 13 } },
+            legend: { position: 'bottom' }
+          }
+        }
+      }));
+    }
+
+    // Speed & Memory bar chart
+    const perfCtx = document.getElementById('perf_' + sid);
+    if (perfCtx) {
+      window._graphCharts.push(new Chart(perfCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Speed (ms)', 'Memory (MB)'],
+          datasets: [{
+            label: algo,
+            data: [r.speed_ms, r.memory_mb],
+            backgroundColor: ['rgba(230,126,34,0.7)', 'rgba(142,68,173,0.7)'],
+            borderColor: ['#e67e22', '#8e44ad'],
+            borderWidth: 2,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: `${algo} — Speed & Memory`, font: { size: 13 } }
+          },
+          scales: { x: { beginAtZero: true } }
+        }
+      }));
+    }
+
+    // Anomaly Score Distribution (scatter/line)
+    const scoreDistCtx = document.getElementById('scoredist_' + sid);
+    if (scoreDistCtx && r.score_distribution) {
+      const distData = r.score_distribution;
+      const labels = distData.map(d => d.idx);
+      const scoreValues = distData.map(d => d.score);
+      const thresholdVal = r.threshold || 0;
+      const thresholdLine = distData.map(() => thresholdVal);
+
+      window._graphCharts.push(new Chart(scoreDistCtx, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Anomaly Score',
+              data: distData.map(d => ({ x: d.idx, y: d.score })),
+              backgroundColor: distData.map(d => d.score >= thresholdVal ? 'rgba(224,90,90,0.8)' : 'rgba(58,107,212,0.5)'),
+              borderColor: distData.map(d => d.score >= thresholdVal ? '#e05a5a' : '#3a6bd4'),
+              pointRadius: distData.map(d => d.score >= thresholdVal ? 5 : 2.5),
+              borderWidth: 1,
+            },
+            {
+              label: 'Threshold',
+              data: [{x: labels[0], y: thresholdVal}, {x: labels[labels.length-1], y: thresholdVal}],
+              type: 'line',
+              borderColor: '#e05a5a',
+              borderWidth: 2,
+              borderDash: [8, 4],
+              pointRadius: 0,
+              fill: false,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: `${algo} — Anomaly Score Distribution`, font: { size: 13 } },
+            legend: { position: 'top', labels: { usePointStyle: true } }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Log Entry Index' }, beginAtZero: true },
+            y: { title: { display: true, text: 'Anomaly Score' }, beginAtZero: true }
+          }
+        }
+      }));
+    }
+    // ROC Curve
+    // ROC Curve
+const rocCtx = document.getElementById('roc_' + sid);
+
+if (rocCtx && r.roc_curve) {
+  const roc = r.roc_curve;
+
+  window._graphCharts.push(new Chart(rocCtx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: `ROC Curve (AUC = ${roc.auc})`,
+          data: roc.fpr.map((fprVal, idx) => ({ x: fprVal, y: roc.tpr[idx] })),
+          showLine: true,
+          borderColor: '#3a6bd4',
+          backgroundColor: 'rgba(58,107,212,0.15)',
+          borderWidth: 3,
+          tension: 0.25,
+          pointRadius: 2,
+          fill: false,
+        },
+        {
+          label: 'Random Guess',
+          data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+          showLine: true,
+          borderColor: '#999',
+          borderDash: [6, 6],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'nearest',
+        intersect: false,
+        axis: 'x'
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: `${algo} — ROC Curve`,
+          font: { size: 13 }
+        },
+        legend: {
+          position: 'bottom'
+        },
+        tooltip: {
+          enabled: true,
+          callbacks: {
+            title: function(contexts) {
+              const idx = contexts[0].dataIndex;
+              const threshold = roc.thresholds?.[idx];
+              return threshold !== undefined ? `Threshold: ${threshold.toFixed(4)}` : `Point #${idx}`;
+            },
+            label: function(context) {
+              if (context.datasetIndex === 1) return 'Random Guess baseline';
+              const x = context.raw.x.toFixed(4);
+              const y = context.raw.y.toFixed(4);
+              return [`FPR : ${x}`, `TPR : ${y}`, `AUC : ${roc.auc}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: 1,
+          title: { display: true, text: 'False Positive Rate' }
+        },
+        y: {
+          min: 0,
+          max: 1,
+          title: { display: true, text: 'True Positive Rate' }
+        }
+      }
+    }
+  }));
+}
+  });
+
+  // ── Comparison charts ──
+  if (algoNames.length > 1) {
+    const bgColors = algoNames.map(a => (ALGO_COLORS[a] || { bg: 'rgba(100,100,100,0.7)' }).bg);
+    const borderColors = algoNames.map(a => (ALGO_COLORS[a] || { border: '#666' }).border);
+
+    // Individual metric comparisons
+    ['accuracy', 'precision', 'sensitivity', 'specificity', 'recall', 'f1'].forEach(metric => {
+      const key = metric === 'f1' ? 'f1_score' : metric;
+      const ctx = document.getElementById('cmp_' + metric);
+      if (ctx) {
+        window._graphCharts.push(new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: algoNames,
+            datasets: [{
+              label: metric.charAt(0).toUpperCase() + metric.slice(1).replace('_', ' ') + ' (%)',
+              data: algoNames.map(a => results[a][key] * 100),
+              backgroundColor: bgColors,
+              borderColor: borderColors,
+              borderWidth: 2,
+              borderRadius: 6,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: metric.charAt(0).toUpperCase() + metric.slice(1).replace('_', ' ') + ' Comparison (%)', font: { size: 14 } }
+            },
+            scales: {
+              y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' } }
+            }
+          }
+        }));
+      }
+    });
+
+    // Grouped bar: all metrics
+    const allCtx = document.getElementById('cmp_all');
+    if (allCtx) {
+      const metrics = ['accuracy', 'precision', 'sensitivity', 'specificity', 'recall', 'f1_score'];
+      const metricLabels = ['Accuracy', 'Precision', 'Sensitivity', 'Specificity', 'Recall', 'F1 Score'];
+      const datasets = algoNames.map((algo, i) => ({
+        label: algo,
+        data: metrics.map(m => (results[algo][m] || 0) * 100),
+        backgroundColor: (ALGO_COLORS[algo] || { bg: 'rgba(100,100,100,0.7)' }).bg,
+        borderColor: (ALGO_COLORS[algo] || { border: '#666' }).border,
+        borderWidth: 2,
+        borderRadius: 4,
+      }));
+      window._graphCharts.push(new Chart(allCtx, {
+        type: 'bar',
+        data: { labels: metricLabels, datasets },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'All Algorithms — Metrics Comparison (%)', font: { size: 14 } },
+            legend: { position: 'top' }
+          },
+          scales: {
+            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' } }
+          }
+        }
+      }));
+    }
+
+    // ── Speed comparison ──
+    const speedCtx = document.getElementById('cmp_speed');
+    if (speedCtx) {
+      window._graphCharts.push(new Chart(speedCtx, {
+        type: 'bar',
+        data: {
+          labels: algoNames,
+          datasets: [{
+            label: 'Speed (ms)',
+            data: algoNames.map(a => results[a].speed_ms),
+            backgroundColor: algoNames.map(a => (ALGO_COLORS[a] || { bg: 'rgba(100,100,100,0.7)' }).bg),
+            borderColor: algoNames.map(a => (ALGO_COLORS[a] || { border: '#666' }).border),
+            borderWidth: 2,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Execution Speed Comparison (ms)', font: { size: 14 } }
+          },
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Milliseconds (ms)' } } }
+        }
+      }));
+    }
+
+    // ── Memory comparison ──
+    const memCtx = document.getElementById('cmp_memory');
+    if (memCtx) {
+      window._graphCharts.push(new Chart(memCtx, {
+        type: 'bar',
+        data: {
+          labels: algoNames,
+          datasets: [{
+            label: 'Memory (MB)',
+            data: algoNames.map(a => results[a].memory_mb),
+            backgroundColor: algoNames.map(a => (ALGO_COLORS[a] || { bg: 'rgba(100,100,100,0.7)' }).bg),
+            borderColor: algoNames.map(a => (ALGO_COLORS[a] || { border: '#666' }).border),
+            borderWidth: 2,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Peak Memory Usage Comparison (MB)', font: { size: 14 } }
+          },
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Megabytes (MB)' } } }
+        }
+      }));
+    }
+
+    // ── Speed vs Memory bubble chart ──
+    const bubbleCtx = document.getElementById('cmp_bubble');
+    if (bubbleCtx) {
+      const bubbleDatasets = algoNames.map(algo => {
+        const r = results[algo];
+        const col = ALGO_COLORS[algo] || { bg: 'rgba(100,100,100,0.5)', border: '#666' };
+        return {
+          label: algo,
+          data: [{
+            x: r.speed_ms,
+            y: r.memory_mb,
+            r: Math.max(8, r.f1_score * 40),
+          }],
+          backgroundColor: col.bg,
+          borderColor: col.border,
+          borderWidth: 2,
+        };
+      });
+      window._graphCharts.push(new Chart(bubbleCtx, {
+        type: 'bubble',
+        data: { datasets: bubbleDatasets },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Speed vs Memory (bubble size = F1 Score)', font: { size: 14 } },
+            legend: { position: 'top' }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Speed (ms)' }, beginAtZero: true },
+            y: { title: { display: true, text: 'Memory (MB)' }, beginAtZero: true }
+          }
+        }
+      }));
+    }
+
+    // ── Radar chart: overall performance ──
+    const radarCtx = document.getElementById('cmp_radar');
+    if (radarCtx) {
+      const maxSpeed = Math.max(...algoNames.map(a => results[a].speed_ms), 1);
+      const maxMem = Math.max(...algoNames.map(a => results[a].memory_mb), 0.001);
+      const radarDatasets = algoNames.map(algo => {
+        const r = results[algo];
+        const col = ALGO_COLORS[algo] || { bg: 'rgba(100,100,100,0.2)', border: '#666' };
+        return {
+          label: algo,
+          data: [
+            r.accuracy * 100,
+            r.precision * 100,
+            (r.sensitivity || r.recall) * 100,
+            (r.specificity || 0) * 100,
+            r.f1_score * 100,
+            (1 - r.speed_ms / maxSpeed) * 100,
+            (1 - r.memory_mb / maxMem) * 100,
+          ],
+          backgroundColor: col.bg.replace('0.7', '0.15'),
+          borderColor: col.border,
+          borderWidth: 2,
+          pointBackgroundColor: col.border,
+        };
+      });
+      window._graphCharts.push(new Chart(radarCtx, {
+        type: 'radar',
+        data: {
+          labels: ['Accuracy', 'Precision', 'Sensitivity', 'Specificity', 'F1 Score', 'Speed (faster=better)', 'Memory (lower=better)'],
+          datasets: radarDatasets,
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Overall Performance Radar', font: { size: 14 } },
+            legend: { position: 'top' }
+          },
+          scales: {
+            r: { beginAtZero: true, max: 100, ticks: { stepSize: 20 } }
+          }
+        }
+      }));
+    }
+  }
+}
+
+// ── UTILITIES ──
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function safeId(str) {
+  return String(str).replace(/[^a-zA-Z0-9]/g, '_');
+}
+</script>
+</body>
+</html>
