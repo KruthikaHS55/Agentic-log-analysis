@@ -250,18 +250,5 @@ Then open `http://127.0.0.1:8080`
 pip install reportlab
 ```
 
----
 
-## Authors
 
-- **Kruthika H S** — Developer
-- Built as part of HPE CPP 2026 Project
-
----
-
-## Acknowledgements
-
-- HPE (Hewlett Packard Enterprise) — Project domain and log data
-- Django Project — Web framework
-- NumPy — Numerical computing
-- Chart.js — Frontend visualizations
