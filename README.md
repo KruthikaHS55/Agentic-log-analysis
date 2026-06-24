@@ -103,6 +103,8 @@ Or install all at once:
 pip install django numpy scikit-learn reportlab
 ```
 
+> **Note:** `reportlab` is required for PDF report generation and download. Without it, the Download PDF feature will not work.
+
 ### Step 4 — Apply Database Migrations
 
 ```bash
@@ -174,8 +176,7 @@ SkyTrace auto-creates your account on first login — no separate registration n
 Agentic-log-analysis/
 │
 ├── app/
-│   ├── analyze_logs.py      # Core ML pipeline (Rule Engine + 6 ML models)
-│   ├── views.py             # Django views + ML model implementations for UI
+│   ├── views.py             # Django views + all ML model implementations
 │   ├── models.py            # Database models (LogFile, AnalysisReport)
 │   ├── admin.py             # Django admin config
 │   └── migrations/          # Database migration files
