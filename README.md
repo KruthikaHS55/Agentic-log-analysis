@@ -1,4 +1,4 @@
-# HPE SkyTrace Alpha 1.0
+# SkyTrace Alpha 1.0
 ### AI-Powered Log Anomaly Detection System
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
