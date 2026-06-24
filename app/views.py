@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 
 from .models import LogFile, AnalysisReport
-from .analyze_logs import analyze_logs as _skytrace_analyze
+
 
 
 def index(request):
@@ -350,7 +350,7 @@ def _ml_gru(entries, filepath):
 
 
 def _ml_lstm(entries, filepath):
-    """LSTM — cell state reconstruction error. ~5% anomaly rate."""
+    """LSTM — fast cell state reconstruction error. ~5% anomaly rate."""
     n = len(entries)
     if n == 0:
         return []
@@ -362,39 +362,37 @@ def _ml_lstm(entries, filepath):
     stds = np.maximum(features.std(axis=0), 0.001)
     X = (features - means) / stds
 
-    W_f = np.random.randn(n_feat, n_feat) * 0.05
-    W_i = np.random.randn(n_feat, n_feat) * 0.05
-    W_c = np.random.randn(n_feat, n_feat) * 0.05
-    cell = np.zeros(n_feat)
-    hidden = np.zeros(n_feat)
+    # Use smaller hidden size for speed
+    h_size = 8
+    W_f = np.random.randn(n_feat, h_size) * 0.05
+    W_i = np.random.randn(n_feat, h_size) * 0.05
+    W_c = np.random.randn(n_feat, h_size) * 0.05
+    W_out = np.random.randn(h_size, n_feat) * 0.05
+
+    cell = np.zeros(h_size)
+    hidden = np.zeros(h_size)
     scores = []
 
+    sig = lambda v: 1.0 / (1.0 + np.exp(-np.clip(v, -6, 6)))
+
     for i in range(n):
-        combined_input = X[i] + hidden
-        forget = 1.0 / (1.0 + np.exp(-np.dot(combined_input, W_f.T[:, 0])))
-        inp_gate = 1.0 / (1.0 + np.exp(-np.dot(combined_input, W_i.T[:, 0])))
-        candidate = np.tanh(np.dot(X[i], W_c))
-        cell = forget * cell + inp_gate * candidate
+        x = X[i]
+        forget = sig(np.dot(x, W_f))
+        inp    = sig(np.dot(x, W_i))
+        cand   = np.tanh(np.dot(x, W_c))
+        cell   = forget * cell + inp * cand
         hidden = np.tanh(cell)
-        recon = hidden[:n_feat]
-        error = float(np.mean((X[i] - recon) ** 2))
+        recon  = np.dot(hidden, W_out)
+        error  = float(np.mean((x - recon) ** 2))
 
         raw = entries[i]['raw'].lower()
-        if 'failed' in raw:
-            error *= 3.0
-        if 'error' in raw:
-            error *= 2.5
-        if 'inconsistent' in raw:
-            error *= 2.0
-        if 'warning' in raw:
-            error *= 1.5
-        if 'ssh' in raw and 'failed' in raw:
-            error *= 1.8
-        if 'flows destined' in raw:
-            error *= 0.4
+        if 'failed' in raw:   error *= 3.0
+        if 'error' in raw:    error *= 2.5
+        if 'inconsistent' in raw: error *= 2.0
+        if 'warning' in raw:  error *= 1.5
+        if 'flows destined' in raw: error *= 0.4
         scores.append((i, error))
 
-    # Top 5% as anomalies
     ANOMALY_PERCENT = 0.05
     threshold_count = max(1, int(n * ANOMALY_PERCENT))
     scores.sort(key=lambda x: -x[1])
@@ -728,42 +726,37 @@ def _ml_gru_ae(entries, filepath):
 
 
 def _ml_lstm_gru(entries, filepath):
-    """LSTM+GRU Hybrid — unified sequential architecture combining LSTM cell state
-    with GRU gating in a single forward pass. Purely unsupervised anomaly detection
-    via self-supervised next-step prediction. No hardcoded keywords or domain rules.
-    Works on any log file by learning what 'normal' looks like from the sequence.
-    This is a fully independent implementation, not a combination of existing models."""
+    """LSTM+GRU Hybrid — fast unified sequential architecture."""
     n = len(entries)
     if n == 0:
         return []
 
     np.random.seed(314)
 
-    # ── Feature extraction: general-purpose log line features ──
     raw_features = []
     for e in entries:
         raw = e['raw']
         raw_lower = raw.lower()
         words = raw_lower.split()
         raw_features.append([
-            len(raw),                                        # 0: line length
-            len(words),                                      # 1: word count
-            sum(1 for c in raw if c.isdigit()),              # 2: digit count
-            sum(1 for c in raw if c.isupper()),              # 3: uppercase count
-            sum(1 for c in raw if not c.isalnum()),          # 4: special char count
-            sum(1 for c in raw if c == '/'),                 # 5: slash count
-            sum(1 for c in raw if c == ':'),                 # 6: colon count
-            sum(1 for c in raw if c == '.'),                 # 7: dot count
-            sum(1 for c in raw if c == '[' or c == ']'),     # 8: bracket count
-            sum(1 for c in raw if c == '(' or c == ')'),     # 9: paren count
-            len(raw) - len(raw.lstrip()),                    # 10: leading whitespace
-            max(len(w) for w in words) if words else 0,      # 11: max word length
-            sum(1 for w in words if w.isupper() and len(w) > 1),  # 12: all-caps words
-            raw_lower.count(','),                            # 13: comma count
-            1 if any(c in raw for c in '!?') else 0,         # 14: exclamation/question
-            len(set(words)) / max(len(words), 1),            # 15: vocabulary diversity
-            sum(1 for w in words if w.isdigit()),            # 16: pure number tokens
-            raw_lower.count('0x'),                           # 17: hex values
+            len(raw),
+            len(words),
+            sum(1 for c in raw if c.isdigit()),
+            sum(1 for c in raw if c.isupper()),
+            sum(1 for c in raw if not c.isalnum()),
+            sum(1 for c in raw if c == '/'),
+            sum(1 for c in raw if c == ':'),
+            sum(1 for c in raw if c == '.'),
+            sum(1 for c in raw if c in '[]'),
+            sum(1 for c in raw if c in '()'),
+            len(raw) - len(raw.lstrip()),
+            max(len(w) for w in words) if words else 0,
+            sum(1 for w in words if w.isupper() and len(w) > 1),
+            raw_lower.count(','),
+            1 if any(c in raw for c in '!?') else 0,
+            len(set(words)) / max(len(words), 1),
+            sum(1 for w in words if w.isdigit()),
+            raw_lower.count('0x'),
         ])
 
     features = np.array(raw_features, dtype=np.float32)
@@ -772,141 +765,88 @@ def _ml_lstm_gru(entries, filepath):
     stds = np.maximum(features.std(axis=0), 0.001)
     X = (features - means) / stds
 
-    # ── LSTM layer weights ──
-    W_f = np.random.randn(n_feat, n_feat) * 0.08
-    W_i = np.random.randn(n_feat, n_feat) * 0.08
-    W_c = np.random.randn(n_feat, n_feat) * 0.08
-    W_o_lstm = np.random.randn(n_feat, n_feat) * 0.08
+    # Smaller hidden size for speed
+    h_size = 8
+    sig = lambda v: 1.0 / (1.0 + np.exp(-np.clip(v, -6, 6)))
 
-    # ── GRU layer weights ──
-    W_r = np.random.randn(n_feat, n_feat) * 0.08
-    W_z = np.random.randn(n_feat, n_feat) * 0.08
-    W_g = np.random.randn(n_feat, n_feat) * 0.08
+    # LSTM weights
+    W_f = np.random.randn(n_feat, h_size) * 0.08
+    W_i = np.random.randn(n_feat, h_size) * 0.08
+    W_c = np.random.randn(n_feat, h_size) * 0.08
+    W_ol = np.random.randn(n_feat, h_size) * 0.08
 
-    # ── Prediction layer: predicts next timestep from combined hidden ──
-    W_pred = np.random.randn(n_feat * 2, n_feat) * 0.05
+    # GRU weights
+    W_r = np.random.randn(h_size, h_size) * 0.08
+    W_z = np.random.randn(h_size, h_size) * 0.08
+    W_g = np.random.randn(h_size, h_size) * 0.08
 
-    # ── Reconstruction layer: reconstructs current input from hidden ──
-    W_recon = np.random.randn(n_feat * 2, n_feat) * 0.05
+    # Output weights
+    W_recon = np.random.randn(h_size * 2, n_feat) * 0.05
 
-    # ── Training: self-supervised (next-step prediction + reconstruction) ──
-    lr = 0.015
-    n_epochs = 4
+    # Single training pass (1 epoch for speed)
+    cell = np.zeros(h_size)
+    h_lstm = np.zeros(h_size)
+    h_gru = np.zeros(h_size)
 
-    for epoch in range(n_epochs):
-        cell = np.zeros(n_feat)
-        h_lstm = np.zeros(n_feat)
-        h_gru = np.zeros(n_feat)
-        current_lr = lr * (0.75 ** epoch)
+    for i in range(n):
+        x = X[i]
+        cell  = sig(np.dot(x, W_f)) * cell + sig(np.dot(x, W_i)) * np.tanh(np.dot(x, W_c))
+        cell  = np.clip(cell, -3, 3)
+        h_lstm = sig(np.dot(x, W_ol)) * np.tanh(cell)
 
-        for i in range(n):
-            x = X[i]
+        rg    = sig(np.dot(h_lstm, W_r))
+        zg    = sig(np.dot(h_lstm, W_z))
+        gc    = np.tanh(np.dot(rg * h_gru + h_lstm, W_g))
+        h_gru = zg * h_gru + (1.0 - zg) * gc
 
-            # ── LSTM forward ──
-            lstm_in = x + h_lstm * 0.3
-            fg = 1.0 / (1.0 + np.exp(-np.clip(np.dot(lstm_in, W_f.T[:, 0]), -6, 6)))
-            ig = 1.0 / (1.0 + np.exp(-np.clip(np.dot(lstm_in, W_i.T[:, 0]), -6, 6)))
-            cc = np.tanh(np.dot(x, W_c))
-            cell = fg * cell + ig * cc
-            cell = np.clip(cell, -3, 3)
-            og = 1.0 / (1.0 + np.exp(-np.clip(np.dot(lstm_in, W_o_lstm.T[:, 0]), -6, 6)))
-            h_lstm = og * np.tanh(cell)
+        combined = np.concatenate([h_lstm, h_gru])
+        recon = np.tanh(np.dot(combined, W_recon))
+        recon_err = recon - x
+        W_recon -= 0.01 * np.outer(combined, recon_err)
 
-            # ── GRU forward ──
-            gru_in = h_lstm + h_gru * 0.3
-            rg = 1.0 / (1.0 + np.exp(-np.clip(np.dot(gru_in, W_r.T[:, 0]), -6, 6)))
-            zg = 1.0 / (1.0 + np.exp(-np.clip(np.dot(gru_in, W_z.T[:, 0]), -6, 6)))
-            gc = np.tanh(np.dot(rg * h_gru + h_lstm, W_g))
-            h_gru = zg * h_gru + (1.0 - zg) * gc
-
-            combined = np.concatenate([h_lstm, h_gru])
-
-            # ── Train reconstruction (predict current x from hidden) ──
-            recon = np.tanh(np.dot(combined, W_recon))
-            recon_err = recon - x
-            W_recon -= current_lr * np.outer(combined, recon_err)
-
-            # ── Train next-step prediction ──
-            if i < n - 1:
-                x_next = X[i + 1]
-                pred_next = np.tanh(np.dot(combined, W_pred))
-                pred_err = pred_next - x_next
-                W_pred -= current_lr * np.outer(combined, pred_err)
-
-    # ── Inference: compute anomaly scores ──
-    cell = np.zeros(n_feat)
-    h_lstm = np.zeros(n_feat)
-    h_gru = np.zeros(n_feat)
+    # Inference
+    cell = np.zeros(h_size)
+    h_lstm = np.zeros(h_size)
+    h_gru = np.zeros(h_size)
     scores = []
 
     for i in range(n):
         x = X[i]
+        cell  = sig(np.dot(x, W_f)) * cell + sig(np.dot(x, W_i)) * np.tanh(np.dot(x, W_c))
+        cell  = np.clip(cell, -3, 3)
+        h_lstm = sig(np.dot(x, W_ol)) * np.tanh(cell)
 
-        # LSTM forward
-        lstm_in = x + h_lstm * 0.3
-        fg = 1.0 / (1.0 + np.exp(-np.clip(np.dot(lstm_in, W_f.T[:, 0]), -6, 6)))
-        ig = 1.0 / (1.0 + np.exp(-np.clip(np.dot(lstm_in, W_i.T[:, 0]), -6, 6)))
-        cc = np.tanh(np.dot(x, W_c))
-        cell = fg * cell + ig * cc
-        cell = np.clip(cell, -3, 3)
-        og = 1.0 / (1.0 + np.exp(-np.clip(np.dot(lstm_in, W_o_lstm.T[:, 0]), -6, 6)))
-        h_lstm = og * np.tanh(cell)
-
-        # GRU forward
-        gru_in = h_lstm + h_gru * 0.3
-        rg = 1.0 / (1.0 + np.exp(-np.clip(np.dot(gru_in, W_r.T[:, 0]), -6, 6)))
-        zg = 1.0 / (1.0 + np.exp(-np.clip(np.dot(gru_in, W_z.T[:, 0]), -6, 6)))
-        gc = np.tanh(np.dot(rg * h_gru + h_lstm, W_g))
+        rg    = sig(np.dot(h_lstm, W_r))
+        zg    = sig(np.dot(h_lstm, W_z))
+        gc    = np.tanh(np.dot(rg * h_gru + h_lstm, W_g))
         h_gru = zg * h_gru + (1.0 - zg) * gc
 
         combined = np.concatenate([h_lstm, h_gru])
-
-        # ── Score 1: Reconstruction error (how well can the model reproduce this input?) ──
         recon = np.tanh(np.dot(combined, W_recon))
         recon_error = float(np.sum((recon - x) ** 2))
-
-        # ── Score 2: Prediction error (how unexpected was this entry?) ──
-        pred_next = np.tanh(np.dot(combined, W_pred))
-        pred_error = float(np.sum((pred_next - x) ** 2))
-
-        # ── Score 3: Feature-space rarity (statistical deviation) ──
         z_score = float(np.sum(x ** 2))
-
-        # ── Combined anomaly score ──
-        anomaly_score = (recon_error * 0.4 +
-                         pred_error * 0.35 +
-                         z_score * 0.25)
-
+        anomaly_score = recon_error * 0.65 + z_score * 0.35
         scores.append((i, anomaly_score))
 
-    # ── Threshold: statistical outlier (mean + 2.5*std) ──
-    all_scores = np.array([s[1] for s in scores])
-    score_mean = float(np.mean(all_scores))
-    score_std = float(np.std(all_scores))
-    threshold = score_mean + 2.5 * score_std
+    all_sc = np.array([s[1] for s in scores])
+    sc_mean, sc_std = float(all_sc.mean()), float(all_sc.std())
+    threshold = sc_mean + 2.5 * sc_std
 
-    # Ensure we flag at least top 1% but no more than 12%
     min_count = max(1, int(n * 0.01))
     max_count = max(1, int(n * 0.12))
-
     sorted_scores = sorted(scores, key=lambda x: -x[1])
-    count_above = sum(1 for _, sc in scores if sc >= threshold)
-
-    if count_above < min_count:
+    n_above = sum(1 for _, sc in scores if sc >= threshold)
+    if n_above < min_count:
         threshold = sorted_scores[min_count - 1][1] - 0.0001
-    elif count_above > max_count:
+    elif n_above > max_count:
         threshold = sorted_scores[max_count - 1][1] - 0.0001
 
     anomaly_entries = []
     for idx, sc in scores:
         if sc >= threshold:
             e = entries[idx]
-            # Normalize score to 0.001-0.099 range
-            if score_std > 0:
-                norm_score = (sc - score_mean) / score_std
-            else:
-                norm_score = 1.0
-            display_score = round(min(0.099, max(0.001, norm_score * 0.015)), 4)
+            norm = (sc - sc_mean) / sc_std if sc_std > 0 else 1.0
+            display_score = round(min(0.099, max(0.001, norm * 0.015)), 4)
             anomaly_entries.append({
                 'line': e['line'], 'text': e['raw'][:300], 'score': display_score,
                 'timestamp': e['timestamp'], 'message': e['message'], 'label': 'ANOMALY'
@@ -914,7 +854,6 @@ def _ml_lstm_gru(entries, filepath):
 
     anomaly_entries.sort(key=lambda x: -x['score'])
     return anomaly_entries
-
 
 
 def _ml_iforest_gru_ae(entries, filepath):
